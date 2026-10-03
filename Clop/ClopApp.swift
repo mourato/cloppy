@@ -1037,7 +1037,9 @@ class AppDelegate: AppDelegateParent {
     func applicationWillFinishLaunching(_ notification: Notification) {
         if !SWIFTUI_PREVIEW {
             migrateSettings()
-            resetDefaultPlayer()
+            #if !CLOPPY
+                resetDefaultPlayer()
+            #endif
         }
     }
 
@@ -2008,20 +2010,22 @@ class ContextualMenuServiceProvider: NSObject {
     }
 }
 
-func defaultAppForUTI(_ uti: String) -> String? {
-    guard let value = LSCopyDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor]) else {
-        return nil
+#if !CLOPPY
+    func defaultAppForUTI(_ uti: String) -> String? {
+        guard let value = LSCopyDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor]) else {
+            return nil
+        }
+        return value.takeRetainedValue() as String
     }
-    return value.takeRetainedValue() as String
-}
-func setDefaultAppForUTI(_ uti: String, _ bundleID: String) -> OSStatus {
-    LSSetDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor], bundleID as CFString)
-}
-func resetDefaultPlayer() {
-    if let mp4Player = defaultAppForUTI("public.mpeg-4"), mp4Player.starts(with: "com.lowtechguys.Clop") {
-        _ = setDefaultAppForUTI("public.mpeg-4", "com.apple.QuickTimePlayerX")
+    func setDefaultAppForUTI(_ uti: String, _ bundleID: String) -> OSStatus {
+        LSSetDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor], bundleID as CFString)
     }
-    if let movPlayer = defaultAppForUTI("com.apple.quicktime-movie"), movPlayer.starts(with: "com.lowtechguys.Clop") {
-        _ = setDefaultAppForUTI("com.apple.quicktime-movie", "com.apple.QuickTimePlayerX")
+    func resetDefaultPlayer() {
+        if let mp4Player = defaultAppForUTI("public.mpeg-4"), mp4Player.starts(with: "com.lowtechguys.Clop") {
+            _ = setDefaultAppForUTI("public.mpeg-4", "com.apple.QuickTimePlayerX")
+        }
+        if let movPlayer = defaultAppForUTI("com.apple.quicktime-movie"), movPlayer.starts(with: "com.lowtechguys.Clop") {
+            _ = setDefaultAppForUTI("com.apple.quicktime-movie", "com.apple.QuickTimePlayerX")
+        }
     }
-}
+#endif

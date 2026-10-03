@@ -197,6 +197,11 @@ enum MCPInstaller {
     /// this path, but the same words would teach the trick for the CLI and Shortcuts paths, whose free
     /// counters do reset on relaunch by design.
     @MainActor static func writeServerCard() {
+        #if CLOPPY
+            let requiresPro = false
+        #else
+            let requiresPro = true
+        #endif
         let card: [String: Any] = [
             "name": serverName,
             "displayName": "Cloppy",
@@ -204,7 +209,7 @@ enum MCPInstaller {
             "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?",
             "app": ["bundleID": "local.cloppy.app", "path": Bundle.main.bundlePath],
             "enabled": Defaults[.mcpEnabled],
-            "requiresPro": true,
+            "requiresPro": requiresPro,
             "pro": proactive,
             "transport": [
                 "type": "stdio",
