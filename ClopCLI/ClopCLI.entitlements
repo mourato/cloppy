@@ -4,12 +4,12 @@
 <dict>
 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
 	<array>
-		<string>com.lowtechguys.Clop.optimisationService</string>
-		<string>com.lowtechguys.Clop.optimisationServiceStop</string>
+		<string>local.cloppy.app.optimisationService</string>
+		<string>local.cloppy.app.optimisationServiceStop</string>
 	</array>
 	<key>com.apple.security.temporary-exception.mach-register.global-name</key>
 	<array>
-		<string>com.lowtechguys.Clop.optimisationServiceResponseCLI</string>
+		<string>local.cloppy.app.optimisationServiceResponseCLI</string>
 	</array>
 </dict>
 </plist>

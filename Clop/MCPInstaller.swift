@@ -4,7 +4,7 @@ import Foundation
 import LowtechPro
 import os
 
-private let mcpLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.lowtechguys.Clop", category: "MCP")
+private let mcpLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "local.cloppy.app", category: "MCP")
 
 // MARK: - MCPInstaller
 
@@ -68,7 +68,7 @@ enum MCPInstaller {
         case unusable
     }
 
-    static let serverName = "clop"
+    static let serverName = "cloppy"
 
     static let clients: [Client] = [
         Client(
@@ -120,7 +120,7 @@ enum MCPInstaller {
         if FileManager.default.isExecutableFile(atPath: bundled) {
             return bundled
         }
-        return ("~/.local/bin/clop" as NSString).expandingTildeInPath
+        return ("~/.local/bin/cloppy" as NSString).expandingTildeInPath
     }
 
     /// Whether the server can actually run. Installing without it writes a config entry that looks
@@ -131,17 +131,17 @@ enum MCPInstaller {
 
     /// The one-liner for a client that is driven from a terminal.
     static var cliCommand: String {
-        "claude mcp add --scope user clop -- \(cliPath) \(serveArgs.joined(separator: " "))"
+        "claude mcp add --scope user cloppy -- \(cliPath) \(serveArgs.joined(separator: " "))"
     }
 
     static var cardURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".well-known/mcp/clop.json")
+            .appendingPathComponent(".well-known/mcp/cloppy.json")
     }
 
     static var supportDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Clop", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/Cloppy", isDirectory: true)
     }
 
     // MARK: - The switch
@@ -159,7 +159,7 @@ enum MCPInstaller {
         mcpLog.info("MCP \(enabled ? "enabled" : "disabled", privacy: .public)")
     }
 
-    /// Handles `clop://mcp/start` and `clop://mcp/stop`. Returns false for a URL that is not ours, so
+    /// Handles `cloppy://mcp/start` and `cloppy://mcp/stop`. Returns false for a URL that is not ours, so
     /// the caller can keep handling it.
     ///
     /// Start ASKS. The URL is what an agent opens when a tool of its own was refused, so nothing but
@@ -167,7 +167,7 @@ enum MCPInstaller {
     /// behind someone who just turned it off would make every line of copy about this a lie. Stop
     /// needs no alert: it only ever takes permission away.
     @MainActor static func handle(url: URL) -> Bool {
-        guard url.scheme == "clop", url.host == "mcp" else { return false }
+        guard url.scheme == "cloppy", url.host == "mcp" else { return false }
         switch url.lastPathComponent {
         case "start":
             guard !Defaults[.mcpEnabled] else { return true }
@@ -199,10 +199,10 @@ enum MCPInstaller {
     @MainActor static func writeServerCard() {
         let card: [String: Any] = [
             "name": serverName,
-            "displayName": "Clop",
+            "displayName": "Cloppy",
             "description": "Image, video, PDF and audio optimisation. Run pipelines over files, downscale, convert, crop, author new pipelines, and read or change any Clop setting.",
             "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?",
-            "app": ["bundleID": "com.lowtechguys.Clop", "path": Bundle.main.bundlePath],
+            "app": ["bundleID": "local.cloppy.app", "path": Bundle.main.bundlePath],
             "enabled": Defaults[.mcpEnabled],
             "requiresPro": true,
             "pro": proactive,
@@ -212,9 +212,9 @@ enum MCPInstaller {
                 "args": serveArgs,
             ],
             "control": [
-                "start": "open clop://mcp/start",
-                "stop": "open clop://mcp/stop",
-                "note": "Clop's MCP server needs Clop Pro. With a licence, reading works whether or not it is started; changes are refused until it is. Starting sticks across launches until it is stopped.",
+                "start": "open cloppy://mcp/start",
+                "stop": "open cloppy://mcp/stop",
+                "note": "Reading works whether or not the server is started; changes require explicit permission in Cloppy Settings. Starting sticks across launches until stopped.",
             ],
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: card, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else { return }

@@ -44,13 +44,13 @@ enum FloatingAction: RawRepresentable, CaseIterable, Codable, Hashable, Defaults
     static let pipelinesMenuIcon = "flowchart"
     static let maxFloatingButtons = 5
     static let maxCompactButtons = 9
-    static let defaultFloating: [FloatingAction] = [.downscale, .restoreOptimise, .compression, .aggressiveOptimisation, .share, .sendSecurely]
+    static let defaultFloating: [FloatingAction] = [.downscale, .restoreOptimise, .compression, .aggressiveOptimisation, .share]
     static let defaultCompact: [FloatingAction] = [.downscale, .compression, .crop, .quickLook, .restoreOptimise, .showInFinder, .saveAs, .copyToClipboard, .share]
 
     /// Built-in actions only; pipeline actions come from the saved pipelines library.
     static let allCases: [FloatingAction] = [
         .downscale, .compression, .crop, .share, .restoreOptimise, .aggressiveOptimisation, .copyToClipboard,
-        .showInFinder, .quickLook, .saveAs, .addToShelf, .sendSecurely, .targetSize,
+        .showInFinder, .quickLook, .saveAs, .addToShelf, .targetSize,
     ]
 
     var rawValue: String {
@@ -3064,15 +3064,19 @@ struct ActionButton: View {
             }
             .contentShape(Rectangle())
         case .sendSecurely:
-            if optimiser.warpDropConnecting {
-                ProgressView()
-                    .controlSize(.mini)
-                    .scaleEffect(0.6)
-            } else if let session = WDM.session(forOptimiser: optimiser) {
-                WarpDropActiveButton(session: session, optimiser: optimiser)
-            } else {
-                SendSecurelyStartButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
-            }
+            #if !CLOPPY
+                if optimiser.warpDropConnecting {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .scaleEffect(0.6)
+                } else if let session = WDM.session(forOptimiser: optimiser) {
+                    WarpDropActiveButton(session: session, optimiser: optimiser)
+                } else {
+                    SendSecurelyStartButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
+                }
+            #else
+                EmptyView()
+            #endif
         case .targetSize:
             TargetSizeButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
         case .pipeline:

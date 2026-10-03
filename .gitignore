@@ -19,3 +19,6 @@ docs/specs/
 
 # subagent-driven-development scratch workspace
 .superpowers/
+
+# Local development checkouts
+.worktrees/

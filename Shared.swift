@@ -260,11 +260,11 @@ func awaitSync(_ action: @escaping () async -> Void) {
     sem.wait()
 }
 
-let OPTIMISATION_PORT_ID = "com.lowtechguys.Clop.optimisationService"
-let OPTIMISATION_STOP_PORT_ID = "com.lowtechguys.Clop.optimisationServiceStop"
-let OPTIMISATION_RESPONSE_PORT_ID = "com.lowtechguys.Clop.optimisationServiceResponse"
-let OPTIMISATION_CLI_RESPONSE_PORT_ID = "com.lowtechguys.Clop.optimisationServiceResponseCLI"
-let SETTINGS_PORT_ID = "com.lowtechguys.Clop.settingsService"
+let OPTIMISATION_PORT_ID = "local.cloppy.app.optimisationService"
+let OPTIMISATION_STOP_PORT_ID = "local.cloppy.app.optimisationServiceStop"
+let OPTIMISATION_RESPONSE_PORT_ID = "local.cloppy.app.optimisationServiceResponse"
+let OPTIMISATION_CLI_RESPONSE_PORT_ID = "local.cloppy.app.optimisationServiceResponseCLI"
+let SETTINGS_PORT_ID = "local.cloppy.app.settingsService"
 
 // MARK: - Settings over the wire
 
@@ -741,8 +741,7 @@ struct OptimisationRequest: Codable, Identifiable {
 }
 
 func runningClopApp() -> NSRunningApplication? {
-    NSRunningApplication.runningApplications(withBundleIdentifier: "com.lowtechguys.Clop-setapp").first
-        ?? NSRunningApplication.runningApplications(withBundleIdentifier: "com.lowtechguys.Clop").first
+    NSRunningApplication.runningApplications(withBundleIdentifier: "local.cloppy.app").first
 }
 
 func isClopRunning() -> Bool {
@@ -751,7 +750,7 @@ func isClopRunning() -> Bool {
 
 import os
 
-let LOG_SUBSYSTEM = Bundle.main.bundleIdentifier ?? "com.lowtechguys.Clop"
+let LOG_SUBSYSTEM = Bundle.main.bundleIdentifier ?? "local.cloppy.app"
 
 private let log = Logger(subsystem: LOG_SUBSYSTEM, category: "Shared")
 
@@ -1110,11 +1109,11 @@ let ARCH: String = {
     Darwin.sysctlbyname("hw.cputype", &ret, &size, nil, 0)
     return ret == NSBundleExecutableArchitectureARM64 ? "arm64" : "x86"
 }()
-let APP_SCRIPTS_DIR = FileManager.default.urls(for: .applicationScriptsDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop")
+let APP_SCRIPTS_DIR = FileManager.default.urls(for: .applicationScriptsDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: "\(NSHomeDirectory())/Library/Application Scripts/local.cloppy.app")
 
-let GLOBAL_BIN_DIR_PARENT = APP_SCRIPTS_DIR // ~/Library/Application Scripts/com.lowtechguys.Clop
-let GLOBAL_BIN_DIR = GLOBAL_BIN_DIR_PARENT.appendingPathComponent("bin") // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/
-let BIN_DIR = GLOBAL_BIN_DIR.appendingPathComponent(ARCH) // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/arm64
+let GLOBAL_BIN_DIR_PARENT = APP_SCRIPTS_DIR // ~/Library/Application Scripts/local.cloppy.app
+let GLOBAL_BIN_DIR = GLOBAL_BIN_DIR_PARENT.appendingPathComponent("bin") // ~/Library/Application Scripts/local.cloppy.app/bin/
+let BIN_DIR = GLOBAL_BIN_DIR.appendingPathComponent(ARCH) // ~/Library/Application Scripts/local.cloppy.app/bin/arm64
 var EXIFTOOL = BIN_DIR.appendingPathComponent("exiftool").filePath!
 var HEIF_ENC = BIN_DIR.appendingPathComponent("heif-enc").filePath!
 var CWEBP = BIN_DIR.appendingPathComponent("cwebp").filePath!

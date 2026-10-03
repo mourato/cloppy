@@ -3026,16 +3026,18 @@ import LowtechPro
 @discardableResult @inline(__always)
 @MainActor func proGuard<T>(count: inout Int, limit: Int = 5, url: URL? = nil, _ action: @escaping () async throws -> T) async throws -> T {
     guard !BM.decompressingBinaries else { throw ClopError.decompressingBinariesError }
-    guard proactive || count < limit, validReq() else {
-        clopDebugLog(
-            "proGuard BLOCKED: proactive=\(proactive) count=\(count) limit=\(limit) url=\(url?.absoluteString ?? "nil") PRO=\(PRO != nil ? "exists" : "nil") productActivated=\(PRO?.productActivated ?? false) onTrial=\(PRO?.onTrial ?? false)"
-        )
-        if let url {
-            OM.skippedBecauseNotPro = OM.skippedBecauseNotPro.with(url)
+    #if !CLOPPY
+        guard proactive || count < limit, validReq() else {
+            clopDebugLog(
+                "proGuard BLOCKED: proactive=\(proactive) count=\(count) limit=\(limit) url=\(url?.absoluteString ?? "nil") PRO=\(PRO != nil ? "exists" : "nil") productActivated=\(PRO?.productActivated ?? false) onTrial=\(PRO?.onTrial ?? false)"
+            )
+            if let url {
+                OM.skippedBecauseNotPro = OM.skippedBecauseNotPro.with(url)
+            }
+            proLimitsReached(url: url)
+            throw ClopError.proError("Pro limits reached")
         }
-        proLimitsReached(url: url)
-        throw ClopError.proError("Pro limits reached")
-    }
+    #endif
     let result = try await action()
     count += 1
     return result

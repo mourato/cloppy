@@ -283,14 +283,14 @@ extension MCPServer {
 extension MCPServer {
     /// The discovery card the app writes on every launch. A hint, never a requirement.
     static func card() -> [String: Any] {
-        let path = ("~/.well-known/mcp/clop.json" as NSString).expandingTildeInPath
+        let path = ("~/.well-known/mcp/cloppy.json" as NSString).expandingTildeInPath
         guard let data = FileManager.default.contents(atPath: path),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return [:] }
         return object
     }
 
-    /// Hands `clop://mcp/<action>` to the app, launching it if it is not running.
+    /// Hands `cloppy://mcp/<action>` to the app, launching it if it is not running.
     ///
     /// Aimed at the app the card names: with a debug build next to /Applications, plain `open` picks
     /// whichever LaunchServices prefers, which may not be the one this server belongs to.
@@ -298,9 +298,9 @@ extension MCPServer {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         if let app = (card()["app"] as? [String: Any])?["path"] as? String, FileManager.default.fileExists(atPath: app) {
-            process.arguments = ["-a", app, "clop://mcp/\(action)"]
+            process.arguments = ["-a", app, "cloppy://mcp/\(action)"]
         } else {
-            process.arguments = ["clop://mcp/\(action)"]
+            process.arguments = ["cloppy://mcp/\(action)"]
         }
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
@@ -314,7 +314,7 @@ extension MCPServer {
 
     /// Asks Clop to allow changes through MCP, launching it if it is not running.
     ///
-    /// Opening the URL is what makes this work while nothing is listening: macOS hands `clop://` to
+    /// Opening the URL is what makes this work while nothing is listening: macOS hands `cloppy://` to
     /// the app and launches it first if needed. Clop then shows an alert and waits for a person, so
     /// the wait here is a person's wait.
     static func startServer(wait: TimeInterval = 90) throws -> ToolOutput {

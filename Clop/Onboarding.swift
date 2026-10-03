@@ -104,7 +104,7 @@ struct OnboardingView: View {
 
     var clopLogo: some View {
         ZStack(alignment: .topLeading) {
-            Text("Clop")
+            Text("Cloppy")
                 .font(.round(64, weight: .black))
             SwiftUI.Image("clop")
                 .resizable()
@@ -145,7 +145,7 @@ struct OnboardingView: View {
                     VStack(alignment: .trailing) {
                         menubar
                         Text("""
-                        Clop lives in your **menubar** and waits for you
+                        Cloppy lives in your **menubar** and waits for you
                         to copy an image or **screenshot to clipboard**.
                         """)
                         .font(.round(14, weight: .regular))
@@ -185,7 +185,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 20)
 
                 Text("""
-                Clop can also watch folders for new **images** and **videos**
+                Cloppy can also watch folders for new **images** and **videos**
                 and **automatically** optimise them.
                 """)
                 .font(.round(14, weight: .regular))
@@ -208,7 +208,7 @@ struct OnboardingView: View {
                         .progressViewStyle(.linear)
                         .padding()
                 } else {
-                    Button("Start using Clop") {
+                    Button("Start using Cloppy") {
                         (AppDelegate.instance as? AppDelegate)?.onboardingWindowController?.close()
                     }
                     .font(.round(14, weight: .semibold))

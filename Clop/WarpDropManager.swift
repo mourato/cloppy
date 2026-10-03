@@ -2,7 +2,9 @@ import Cocoa
 import Defaults
 import Foundation
 import os
-import WarpDrop
+#if canImport(WarpDrop)
+    import WarpDrop
+#endif
 
 private let log = Logger(subsystem: LOG_SUBSYSTEM, category: "WarpDrop")
 
@@ -276,114 +278,127 @@ func warpDropSend(optimisers: [Optimiser], expiration: TimeInterval? = nil) {
 
 @MainActor
 private func warpDropSendFiles(_ files: [URL], overlayOptimisers: [Optimiser], expiration: TimeInterval? = nil) {
-    let expiresAt = resolveLinkExpiry(expiration)
-    let client = WarpDropClient()
-    let roomIDRef = Ref<String?>(nil)
+    #if canImport(WarpDrop)
+        let expiresAt = resolveLinkExpiry(expiration)
+        let client = WarpDropClient()
+        let roomIDRef = Ref<String?>(nil)
 
-    let task = Task.detached { () -> String in
-        try await client.send(
-            files: files,
-            multi: true, // serve every receiver at once instead of one-at-a-time
-            maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
-            onRoomCreated: { [roomIDRef] roomID in
-                roomIDRef.value = roomID
-                Task { @MainActor in
-                    let shareURL = files.count == 1
-                        ? "https://drop.lowtechguys.com/d/\(roomID)"
-                        : "https://drop.lowtechguys.com/r/\(roomID)"
-                    withGeneralPasteboard { pb in
-                        pb.clearContents()
-                        pb.setString(shareURL, forType: .string)
+        let task = Task.detached { () -> String in
+            try await client.send(
+                files: files,
+                multi: true, // serve every receiver at once instead of one-at-a-time
+                maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
+                onRoomCreated: { [roomIDRef] roomID in
+                    roomIDRef.value = roomID
+                    Task { @MainActor in
+                        let shareURL = files.count == 1
+                            ? "https://drop.lowtechguys.com/d/\(roomID)"
+                            : "https://drop.lowtechguys.com/r/\(roomID)"
+                        withGeneralPasteboard { pb in
+                            pb.clearContents()
+                            pb.setString(shareURL, forType: .string)
+                        }
+
+                        for optimiser in overlayOptimisers {
+                            optimiser.warpDropConnecting = false
+                        }
+                        overlayOptimisers.first?.overlayMessage = "Copied link"
                     }
-
-                    for optimiser in overlayOptimisers {
-                        optimiser.warpDropConnecting = false
+                },
+                onDownloadCompleted: { [roomIDRef] count in
+                    guard let roomID = roomIDRef.value else { return }
+                    Task { @MainActor in
+                        WDM.didCompleteDownload(roomID: roomID, count: count)
                     }
-                    overlayOptimisers.first?.overlayMessage = "Copied link"
                 }
-            },
-            onDownloadCompleted: { [roomIDRef] count in
-                guard let roomID = roomIDRef.value else { return }
-                Task { @MainActor in
-                    WDM.didCompleteDownload(roomID: roomID, count: count)
-                }
-            }
-        )
-    }
+            )
+        }
 
-    Task {
-        defer {
-            for optimiser in overlayOptimisers {
-                optimiser.warpDropConnecting = false
+        Task {
+            defer {
+                for optimiser in overlayOptimisers {
+                    optimiser.warpDropConnecting = false
+                }
+                // Clear the in-flight reservation if the room never got created
+                // (timeout/cancel). On success addSession already cleared it.
+                WDM.releaseConnecting(files)
             }
-            // Clear the in-flight reservation if the room never got created
-            // (timeout/cancel). On success addSession already cleared it.
-            WDM.releaseConnecting(files)
-        }
-        for _ in 0 ..< 300 {
-            try? await Task.sleep(for: .milliseconds(100))
-            if let roomID = roomIDRef.value {
-                WDM.addSession(roomID: roomID, files: files, task: task, expiresAt: expiresAt)
-                return
+            for _ in 0 ..< 300 {
+                try? await Task.sleep(for: .milliseconds(100))
+                if let roomID = roomIDRef.value {
+                    WDM.addSession(roomID: roomID, files: files, task: task, expiresAt: expiresAt)
+                    return
+                }
+                if task.isCancelled { return }
             }
-            if task.isCancelled { return }
         }
-    }
+    #else
+        WDM.releaseConnecting(files)
+        for optimiser in overlayOptimisers {
+            optimiser.warpDropConnecting = false
+            optimiser.overlayMessage = "Secure sending is unavailable in Cloppy"
+        }
+    #endif
 }
 
 /// Send a single file securely and await the share link.
 /// Returns the share URL on success, nil on failure or timeout.
 @MainActor
 func warpDropSendAndWait(url: URL, optimiser: Optimiser, expiration: TimeInterval? = nil) async -> String? {
-    // Already shared: return the existing link instead of opening another room.
-    if let session = WDM.session(forPath: url.path) {
-        return session.shareURL
-    }
-    // Already connecting from another trigger: don't start a duplicate transfer.
-    guard WDM.reserveForSending([url]).isNotEmpty else {
-        return WDM.session(forPath: url.path)?.shareURL
-    }
-    defer { WDM.releaseConnecting([url]) }
-
-    let expiresAt = resolveLinkExpiry(expiration)
-    let client = WarpDropClient()
-    let roomIDRef = Ref<String?>(nil)
-
-    let task = Task.detached { () -> String in
-        try await client.send(
-            files: [url],
-            multi: true, // serve every receiver at once instead of one-at-a-time
-            maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
-            onRoomCreated: { [roomIDRef] roomID in
-                roomIDRef.value = roomID
-                Task { @MainActor in
-                    let shareURL = "https://drop.lowtechguys.com/d/\(roomID)"
-                    withGeneralPasteboard { pb in
-                        pb.clearContents()
-                        pb.setString(shareURL, forType: .string)
-                    }
-                    optimiser.overlayMessage = "Copied link"
-                }
-            },
-            onDownloadCompleted: { [roomIDRef] count in
-                guard let roomID = roomIDRef.value else { return }
-                Task { @MainActor in
-                    WDM.didCompleteDownload(roomID: roomID, count: count)
-                }
-            }
-        )
-    }
-
-    for _ in 0 ..< 300 {
-        try? await Task.sleep(for: .milliseconds(100))
-        if let roomID = roomIDRef.value {
-            WDM.addSession(roomID: roomID, files: [url], task: task, expiresAt: expiresAt)
-            return "https://drop.lowtechguys.com/d/\(roomID)"
+    #if canImport(WarpDrop)
+        // Already shared: return the existing link instead of opening another room.
+        if let session = WDM.session(forPath: url.path) {
+            return session.shareURL
         }
-        if task.isCancelled { return nil }
-    }
+        // Already connecting from another trigger: don't start a duplicate transfer.
+        guard WDM.reserveForSending([url]).isNotEmpty else {
+            return WDM.session(forPath: url.path)?.shareURL
+        }
+        defer { WDM.releaseConnecting([url]) }
 
-    return nil
+        let expiresAt = resolveLinkExpiry(expiration)
+        let client = WarpDropClient()
+        let roomIDRef = Ref<String?>(nil)
+
+        let task = Task.detached { () -> String in
+            try await client.send(
+                files: [url],
+                multi: true, // serve every receiver at once instead of one-at-a-time
+                maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
+                onRoomCreated: { [roomIDRef] roomID in
+                    roomIDRef.value = roomID
+                    Task { @MainActor in
+                        let shareURL = "https://drop.lowtechguys.com/d/\(roomID)"
+                        withGeneralPasteboard { pb in
+                            pb.clearContents()
+                            pb.setString(shareURL, forType: .string)
+                        }
+                        optimiser.overlayMessage = "Copied link"
+                    }
+                },
+                onDownloadCompleted: { [roomIDRef] count in
+                    guard let roomID = roomIDRef.value else { return }
+                    Task { @MainActor in
+                        WDM.didCompleteDownload(roomID: roomID, count: count)
+                    }
+                }
+            )
+        }
+
+        for _ in 0 ..< 300 {
+            try? await Task.sleep(for: .milliseconds(100))
+            if let roomID = roomIDRef.value {
+                WDM.addSession(roomID: roomID, files: [url], task: task, expiresAt: expiresAt)
+                return "https://drop.lowtechguys.com/d/\(roomID)"
+            }
+            if task.isCancelled { return nil }
+        }
+
+        return nil
+    #else
+        optimiser.overlayMessage = "Secure sending is unavailable in Cloppy"
+        return nil
+    #endif
 }
 
 /// Thread-safe mutable reference for sharing values across sendable closures.

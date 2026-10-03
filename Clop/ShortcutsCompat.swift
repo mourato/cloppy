@@ -14,6 +14,8 @@ func runShortcutProcess(_ shortcut: Shortcut, _ file: String, outFile: String) -
 }
 
 func startShortcutWatcher() {
-    guard hasShortcutsDB() else { return }
+    #if !CLOPPY
+        guard hasShortcutsDB() else { return }
+    #endif
     SHM.startWatching()
 }

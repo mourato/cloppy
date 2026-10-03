@@ -32,7 +32,7 @@ extension URL {
 }
 
 extension UserDefaults {
-    static let app: UserDefaults? = .init(suiteName: "com.lowtechguys.Clop")
+    static let app: UserDefaults? = .init(suiteName: "local.cloppy.app")
 }
 
 extension FileBehaviour: ExpressibleByArgument {
@@ -58,7 +58,7 @@ let SIZE_REGEX = #/(\d+)\s*[xX×]\s*(\d+)/#
 let RATIO_REGEX = #/(\d+)[.,]?(\d*)\s*:\s*(\d+)[.,]?(\d*)/#
 let CLOP_APP: URL = {
     let u = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
-    return u.pathExtension == "app" ? u : URL(fileURLWithPath: "/Applications/Clop.app")
+    return u.pathExtension == "app" ? u : URL(fileURLWithPath: "/Applications/Cloppy.app")
 }()
 
 var currentRequestIDs: [String] = []
@@ -742,14 +742,13 @@ func convertPipelineDSL(to format: String, output: String?) -> String {
 }
 
 /// Resolve a bundled binary installed by the Clop app. The standalone CLI resolves
-/// `applicationScriptsDirectory` to its own bundle id (com.lowtechguys.Clop.CLI), which
+/// `applicationScriptsDirectory` to its own bundle id (local.cloppy.app.CLI), which
 /// may not have the bin symlink yet (e.g. before the app has run), so fall back to the
 /// app's known Application Scripts locations.
 func resolveBundledBinary(_ name: String) -> String? {
     let candidates = [
         BIN_DIR.appendingPathComponent(name).path,
-        "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop/bin/\(ARCH)/\(name)",
-        "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop-setapp/bin/\(ARCH)/\(name)",
+        "\(NSHomeDirectory())/Library/Application Scripts/local.cloppy.app/bin/\(ARCH)/\(name)",
     ]
     return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
 }
@@ -2786,7 +2785,7 @@ struct Clop: ParsableCommand {
                 let enabled = defaults?.bool(forKey: "mcpEnabled") ?? false
                 let scripts = defaults?.bool(forKey: "mcpAllowScriptSteps") ?? false
 
-                let cardPath = ("~/Library/Application Support/Clop/mcp.json" as NSString).expandingTildeInPath
+                let cardPath = ("~/Library/Application Support/Cloppy/mcp.json" as NSString).expandingTildeInPath
                 let card = (try? Data(contentsOf: URL(fileURLWithPath: cardPath)))
                     .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
 
@@ -2817,7 +2816,7 @@ struct Clop: ParsableCommand {
                         print("App:             \(path)")
                     }
                     if !enabled {
-                        print("\nAsk the user to allow it in Clop Settings, MCP, or run: open clop://mcp/start")
+                        print("\nAsk the user to allow it in Clop Settings, MCP, or run: open cloppy://mcp/start")
                     }
                     return
                 }
@@ -2849,7 +2848,8 @@ struct Clop: ParsableCommand {
     }
 
     static let configuration = CommandConfiguration(
-        abstract: "Clop: optimise, crop and downscale images, videos, audio files and PDFs",
+        commandName: "cloppy",
+        abstract: "Cloppy: optimise, crop and downscale images, videos, audio files and PDFs",
         subcommands: [
             Optimise.self,
             Crop.self,

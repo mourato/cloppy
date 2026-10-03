@@ -909,17 +909,17 @@ func tryProcAsync(_ cmd: String, args: [String], tries: Int, env: [String: Strin
     return proc
 }
 
-let LRZIP = Bundle.main.url(forResource: "lrzip", withExtension: "")! // /Applications/Clop.app/Contents/Resources/lrzip
-let BIN_ARCHIVE = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz")! // /Applications/Clop.app/Contents/Resources/bin.tar.lrz
-let BIN_ARCHIVE_HASH_PATH = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz.sha256")! // /Applications/Clop.app/Contents/Resources/bin.tar.lrz.sha256
+let LRZIP = Bundle.main.url(forResource: "lrzip", withExtension: "")! // /Applications/Cloppy.app/Contents/Resources/lrzip
+let BIN_ARCHIVE = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz")! // /Applications/Cloppy.app/Contents/Resources/bin.tar.lrz
+let BIN_ARCHIVE_HASH_PATH = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz.sha256")! // /Applications/Cloppy.app/Contents/Resources/bin.tar.lrz.sha256
 
 let OLD_BIN_DIRS = [
-    APP_SCRIPTS_DIR.appendingPathComponent("com.lowtechguys.Clop"), // ~/Library/Application Scripts/com.lowtechguys.Clop/com.lowtechguys.Clop/
-    APP_SCRIPTS_DIR.appendingPathComponent("bin-arm64"), // ~/Library/Application Scripts/com.lowtechguys.Clop/bin-arm64
-    APP_SCRIPTS_DIR.appendingPathComponent("bin-x86"), // ~/Library/Application Scripts/com.lowtechguys.Clop/bin-x86
+    APP_SCRIPTS_DIR.appendingPathComponent("local.cloppy.app"), // ~/Library/Application Scripts/local.cloppy.app/local.cloppy.app/
+    APP_SCRIPTS_DIR.appendingPathComponent("bin-arm64"), // ~/Library/Application Scripts/local.cloppy.app/bin-arm64
+    APP_SCRIPTS_DIR.appendingPathComponent("bin-x86"), // ~/Library/Application Scripts/local.cloppy.app/bin-x86
 ]
 let BIN_ARCHIVE_HASH = fm.contents(atPath: BIN_ARCHIVE_HASH_PATH.path)! // f62955f10479b7df4d516f8a714290f2402faaf8960c6c44cae3dfc68f45aabd
-let BIN_HASH_FILE = BIN_DIR.appendingPathComponent("sha256hash") // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/sha256hash
+let BIN_HASH_FILE = BIN_DIR.appendingPathComponent("sha256hash") // ~/Library/Application Scripts/local.cloppy.app/bin/sha256hash
 
 func nsalert(error: String) {
     mainThread {
@@ -986,7 +986,7 @@ func nsalert(error: String) {
         }
 
         // The standalone `clop` CLI resolves `applicationScriptsDirectory` to its own
-        // bundle id (com.lowtechguys.Clop.CLI), so symlink that directory to the app's
+        // bundle id (local.cloppy.app.CLI), so symlink that directory to the app's
         // own Application Scripts directory to let the CLI find the bundled binaries.
         let cliDir = GLOBAL_BIN_DIR_PARENT.deletingLastPathComponent().appendingPathComponent("\(GLOBAL_BIN_DIR_PARENT.lastPathComponent).CLI")
         if fm.fileExists(atPath: cliDir.path), (try? fm.destinationOfSymbolicLink(atPath: cliDir.path)) != GLOBAL_BIN_DIR_PARENT.path {

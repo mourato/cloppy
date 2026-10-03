@@ -73,7 +73,7 @@ enum MCPServer {
 
     // MARK: Protocol constants
 
-    static let serverName = "clop-mcp"
+    static let serverName = "cloppy-mcp"
     static let serverVersion = "2.0.0"
 
     /// Only the fallback for a client that omits the field. The negotiated version is whatever the

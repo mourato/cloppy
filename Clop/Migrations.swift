@@ -4,7 +4,9 @@ import Lowtech
 
 enum Migrations {
     static func run() {
-        clopIgnoreMigrate()
+        #if !CLOPPY
+            clopIgnoreMigrate()
+        #endif
         portablePathsMigrate()
     }
 
