@@ -71,6 +71,27 @@ exit 0
         self.assertEqual((self.apps / 'Cloppy.app/marker').read_text(), 'old')
         self.assert_clean()
 
+    def test_external_replacement_during_validation_is_preserved(self):
+        self.tool('codesign', '''#!/bin/bash
+for argument in "$@"; do
+    if [[ "$argument" == "$APPLICATIONS_DIR/Cloppy.app" ]] && grep -q new "$argument/marker"; then
+        mv "$argument" "$APPLICATIONS_DIR/external-moved.app"
+        mkdir "$argument"
+        printf external > "$argument/marker"
+        exit 1
+    fi
+done
+exit 0
+''')
+        result = self.invoke()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual((self.apps / 'Cloppy.app/marker').read_text(), 'external')
+        backups = list(self.apps.glob('.cloppy-install.*/previous.app/marker'))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), 'old')
+        self.assertIn('Recovery files:', result.stderr)
+        self.assertFalse((self.apps / '.cloppy-install.lock').exists())
+
     def test_other_installer_lock_is_not_removed(self):
         lock = self.apps / '.cloppy-install.lock'
         lock.mkdir()

@@ -29,18 +29,27 @@ if pgrep -x Cloppy >/dev/null; then
 fi
 # Stage on the destination volume; keep the old bundle until replacement verifies.
 transaction="$(mktemp -d "$applications/.cloppy-install.XXXXXX")"
-published=0
+published_identity=""
 committed=0
 locked=0
 cleanup() {
     local result=$?
     if [[ "$committed" == 0 ]]; then
-        if [[ "$published" == 1 ]]; then rm -rf "$target"; fi
-        if [[ -e "$transaction/previous.app" ]]; then
-            mv "$transaction/previous.app" "$target" || {
-                echo "Recovery required: old app remains at $transaction/previous.app" >&2
+        if [[ -n "$published_identity" && ( -e "$target" || -L "$target" ) ]]; then
+            if [[ ! -L "$target" && "$(stat -f '%d:%i' "$target" 2>/dev/null || true)" == "$published_identity" ]]; then
+                rm -rf "$target" || result=1
+            else
+                echo "Destination changed; preserved it. Recovery files: $transaction" >&2
+                if [[ "$locked" == 1 ]]; then rmdir "$applications/.cloppy-install.lock"; fi
                 exit 1
-            }
+            fi
+        fi
+        if [[ -e "$transaction/previous.app" ]]; then
+            if [[ -e "$target" || -L "$target" ]] || ! mv "$transaction/previous.app" "$target"; then
+                echo "Recovery required: old app remains at $transaction/previous.app" >&2
+                if [[ "$locked" == 1 ]]; then rmdir "$applications/.cloppy-install.lock"; fi
+                exit 1
+            fi
         fi
     fi
     rm -rf "$transaction"
@@ -60,9 +69,12 @@ if [[ -L "$target" || "$(stat -f '%d:%i:%m' "$target" 2>/dev/null || true)" != "
     echo 'Installation target changed while staging; refusing replacement.' >&2; exit 1
 fi
 if [[ -e "$target" ]]; then mv "$target" "$transaction/previous.app"; fi
-published=1
+published_identity="$(stat -f '%d:%i' "$transaction/Cloppy.app")"
 mv "$transaction/Cloppy.app" "$target"
 "$repo/Scripts/validate-cloppy.sh" "$target"
 codesign --verify --deep --strict -R "=certificate leaf = H\"$identity\"" "$target"
+[[ ! -L "$target" && "$(stat -f '%d:%i' "$target" 2>/dev/null || true)" == "$published_identity" ]] || {
+    echo 'Installation target changed during validation.' >&2; exit 1;
+}
 committed=1
 printf 'Installed %s (not launched)\n' "$target"

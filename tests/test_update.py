@@ -113,6 +113,29 @@ class UpdateTests(unittest.TestCase):
             self.invoke(side_effect=edit)
         self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), self.base)
 
+    def test_commit_hook_changes_are_never_integrated(self):
+        self.release()
+        hooks = Path(self.temp.name) / 'hooks'
+        hooks.mkdir()
+        hook = hooks / 'pre-commit'
+        hook.write_text('#!/bin/sh\nprintf "unreviewed hook edit\\n" > new.txt\ngit add new.txt\n')
+        hook.chmod(0o755)
+        self.run_git(self.repo, 'config', 'core.hooksPath', str(hooks))
+        with self.assertRaisesRegex(RuntimeError, 'Committed candidate changed'):
+            self.invoke()
+        self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), self.base)
+        self.assertFalse((self.repo / 'new.txt').exists())
+
+    def test_same_tree_history_change_during_review_is_rejected(self):
+        self.release()
+        candidate = self.repo / '.worktrees/cloppy-update-v1-1-0'
+        def edit(_):
+            self.run_git(candidate, 'commit', '-qm', 'external merge')
+            return 'yes'
+        with self.assertRaisesRegex(RuntimeError, 'Candidate changed'):
+            self.invoke(side_effect=edit)
+        self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), self.base)
+
     def test_dirty_source_is_rejected_before_fetch(self):
         (self.repo / 'local.txt').write_text('unsaved edit\n')
         with self.assertRaisesRegex(RuntimeError, 'local changes'):

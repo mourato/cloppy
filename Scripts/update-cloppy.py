@@ -77,10 +77,14 @@ def update(repo):
             return
         if git(repo, 'symbolic-ref', '--quiet', '--short', 'HEAD') != branch or git(repo, 'rev-parse', 'HEAD') != base or git(repo, 'status', '--porcelain'):
             raise RuntimeError('Source checkout changed during review; refusing integration.')
-        if git(worktree, 'write-tree') != tree or git(worktree, 'diff') or git(worktree, 'ls-files', '--others', '--exclude-standard'):
+        if git(worktree, 'symbolic-ref', '--quiet', '--short', 'HEAD') != slug or git(worktree, 'rev-parse', 'HEAD') != base or git(worktree, 'rev-parse', '--verify', 'MERGE_HEAD') != upstream or git(worktree, 'write-tree') != tree or git(worktree, 'diff') or git(worktree, 'ls-files', '--others', '--exclude-standard'):
             raise RuntimeError('Candidate changed during build/review. Validate edits before integrating manually.')
         git(worktree, 'commit', '-m', f'Merge Clop {release} into Cloppy', capture=False)
         candidate = git(worktree, 'rev-parse', 'HEAD')
+        if git(worktree, 'rev-parse', f'{candidate}^{{tree}}') != tree or git(worktree, 'show', '-s', '--format=%P', candidate).split() != [base, upstream] or git(worktree, 'status', '--porcelain'):
+            raise RuntimeError('Committed candidate changed after validation; refusing integration.')
+        if git(repo, 'symbolic-ref', '--quiet', '--short', 'HEAD') != branch or git(repo, 'rev-parse', 'HEAD') != base or git(repo, 'status', '--porcelain'):
+            raise RuntimeError('Source checkout changed during commit; refusing integration.')
         git(repo, 'merge', '--ff-only', candidate, capture=False)
         print(f'Integrated {release} on {branch}. No push or installation performed.')
         print(f'Validated artifact: {worktree}/build/Cloppy.app\nNext: make install')
