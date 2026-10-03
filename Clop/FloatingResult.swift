@@ -383,7 +383,7 @@ var audioPreviewThumbnail: NSImage {
 /// "Show in Finder" and deletes them, nothing breaks. Preview optimisers are also gated against
 /// every file-mutating action, so these stay strictly read-only demo files.
 var previewSamplesDir: FilePath {
-    FilePath.dir(FilePath(NSTemporaryDirectory()) / "com.lowtechguys.Clop" / "preview-samples", permissions: 0o755)
+    FilePath.dir(FilePath(NSTemporaryDirectory()) / "local.cloppy.app" / "preview-samples", permissions: 0o755)
 }
 
 /// Materialise a bundled preview sample (a `.dataset` in the asset catalog) to a temp file, so the

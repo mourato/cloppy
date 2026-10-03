@@ -2175,42 +2175,66 @@ struct MadeBy: View {
     }
 }
 
-struct LicenseUpdatesSettingsView: View {
-    @ObservedObject var um: UpdateManager = UM
-    @ObservedObject var pm: ProManager = PM
-
-    var body: some View {
-        if let pro = pm.pro, let updater = um.updater {
-            Form {
-                LicenseAndUpdatesView(pro: pro, updater: updater, appName: "Clop", changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html"))
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-        } else {
-            ProgressView()
-                .fill()
+#if CLOPPY
+    struct LicenseUpdatesSettingsView: View {
+        var body: some View {
+            Text("Cloppy includes full local optimisation. Updates are built manually from the fork.")
+                .padding()
         }
     }
-}
 
-struct AboutSettingsView: View {
-    @ObservedObject var um: UpdateManager = UM
-    @ObservedObject var pm: ProManager = PM
-
-    var body: some View {
-        AboutView(
-            appName: "Clop",
-            pro: pm.pro,
-            updater: um.updater,
-            websiteURL: URL(string: "https://lowtechguys.com/clop"),
-            contactURL: URL(string: "https://lowtechguys.com/contact?app=Clop"),
-            discordURL: URL(string: "https://discord.gg/YeTuy6adXk"),
-            sourceURL: URL(string: "https://github.com/FuzzyIdeas/Clop"),
-            changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html")
-        )
-        .fill()
+    struct AboutSettingsView: View {
+        var body: some View {
+            VStack(spacing: 12) {
+                Text("Cloppy").font(.title)
+                Text("Version \(Bundle.main.version)")
+                Text("Local fork of Clop by The low-tech guys. GPLv3.")
+                Text("Full local optimisation. No commercial activation or automatic updates.")
+                Link("Original source", destination: URL(string: "https://github.com/FuzzyIdeas/Clop")!)
+            }
+            .padding()
+            .fill()
+        }
     }
-}
+#else
+    struct LicenseUpdatesSettingsView: View {
+        @ObservedObject var um: UpdateManager = UM
+        @ObservedObject var pm: ProManager = PM
+
+        var body: some View {
+            if let pro = pm.pro, let updater = um.updater {
+                Form {
+                    LicenseAndUpdatesView(pro: pro, updater: updater, appName: "Clop", changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html"))
+                }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+            } else {
+                ProgressView()
+                    .fill()
+            }
+        }
+    }
+
+    struct AboutSettingsView: View {
+        @ObservedObject var um: UpdateManager = UM
+        @ObservedObject var pm: ProManager = PM
+
+        var body: some View {
+            AboutView(
+                appName: "Clop",
+                pro: pm.pro,
+                updater: um.updater,
+                websiteURL: URL(string: "https://lowtechguys.com/clop"),
+                contactURL: URL(string: "https://lowtechguys.com/contact?app=Clop"),
+                discordURL: URL(string: "https://discord.gg/YeTuy6adXk"),
+                sourceURL: URL(string: "https://github.com/FuzzyIdeas/Clop"),
+                changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html")
+            )
+            .fill()
+        }
+    }
+
+#endif
 
 import SymbolPicker
 
@@ -2910,23 +2934,25 @@ struct GeneralSettingsView: View {
             }
             LaunchAtLogin.Toggle()
                 .accessibilityLabel("Launch at login")
-            Toggle("Sync settings with other Macs via iCloud", isOn: $syncSettingsCloud)
-                .searchAnchor("general.main.syncSettingsCloud", namesControl: true)
-            HStack {
-                Text("Secure send links expire after")
-                Spacer()
-                Picker("Secure send links expire after", selection: $defaultLinkExpiration) {
-                    ForEach(LINK_EXPIRATION_PRESETS, id: \.self) { preset in
-                        Text(expirationDurationLabel(preset)).tag(preset)
+            #if !CLOPPY
+                Toggle("Sync settings with other Macs via iCloud", isOn: $syncSettingsCloud)
+                    .searchAnchor("general.main.syncSettingsCloud", namesControl: true)
+                HStack {
+                    Text("Secure send links expire after")
+                    Spacer()
+                    Picker("Secure send links expire after", selection: $defaultLinkExpiration) {
+                        ForEach(LINK_EXPIRATION_PRESETS, id: \.self) { preset in
+                            Text(expirationDurationLabel(preset)).tag(preset)
+                        }
+                        Divider()
+                        Text("Never").tag(LINK_EXPIRATION_NEVER)
                     }
-                    Divider()
-                    Text("Never").tag(LINK_EXPIRATION_NEVER)
+                    .labelsHidden()
+                    .frame(width: 150)
+                    .searchAnchor("general.main.defaultLinkExpiration")
                 }
-                .labelsHidden()
-                .frame(width: 150)
-                .searchAnchor("general.main.defaultLinkExpiration")
-            }
 
+            #endif
             Section(header: SectionHeader(title: "Edit with external app", subtitle: "Hand an optimised file to an editor of your choice with ⌘E or the right-click menu")) {
                 EditorAppRow(label: "Images", systemImage: "photo", key: .editorAppImage)
                     .searchAnchor("general.editwithexternalapp.editorAppImage")
@@ -2999,12 +3025,14 @@ struct GeneralSettingsView: View {
                 .searchAnchor("general.optimisation.optimisedFileProtectionMs", namesControl: true)
             }
 
-            Section(header: SectionHeader(title: "Privacy")) {
-                SentryToggleRow(
-                    title: "Send error reports",
-                    subtitle: "Help improve Clop by sending anonymous crash and error reports to the developer"
-                )
-            }
+            #if !CLOPPY
+                Section(header: SectionHeader(title: "Privacy")) {
+                    SentryToggleRow(
+                        title: "Send error reports",
+                        subtitle: "Help improve Clop by sending anonymous crash and error reports to the developer"
+                    )
+                }
+            #endif
         }
         .scrollContentBackground(.hidden)
         .padding(.horizontal, 50)

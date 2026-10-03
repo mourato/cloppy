@@ -207,18 +207,20 @@ struct RightClickMenuView: View {
             }
 
             Section("Share") {
-                if let session = wdm.session(forOptimiser: optimiser) {
-                    Button("Copy send link") {
-                        session.copyLink()
-                        optimiser.overlayMessage = "Copied link"
+                #if !CLOPPY
+                    if let session = wdm.session(forOptimiser: optimiser) {
+                        Button("Copy send link") {
+                            session.copyLink()
+                            optimiser.overlayMessage = "Copied link"
+                        }
+                        .keyboardShortcut("w")
+                    } else {
+                        Button("Send file securely") {
+                            warpDropSend(optimiser: optimiser)
+                        }
+                        .keyboardShortcut("w")
                     }
-                    .keyboardShortcut("w")
-                } else {
-                    Button("Send file securely") {
-                        warpDropSend(optimiser: optimiser)
-                    }
-                    .keyboardShortcut("w")
-                }
+                #endif
                 if let url = optimiser.url ?? optimiser.originalURL, let airdrop = NSSharingService(named: .sendViaAirDrop) {
                     Button("Send with AirDrop") {
                         guard optimiser.existingFileOrNotify() != nil else { return }
@@ -504,21 +506,23 @@ struct BatchRightClickMenuView: View {
 
         Divider()
 
-        if sm.optimisers.allSatisfy({ wdm.session(forOptimiser: $0) != nil }) {
-            Button("Copy all send links") {
-                let links = sm.optimisers.compactMap { wdm.session(forOptimiser: $0)?.shareURL }
-                withGeneralPasteboard { pb in
-                    pb.clearContents()
-                    pb.setString(links.joined(separator: "\n"), forType: .string)
+        #if !CLOPPY
+            if sm.optimisers.allSatisfy({ wdm.session(forOptimiser: $0) != nil }) {
+                Button("Copy all send links") {
+                    let links = sm.optimisers.compactMap { wdm.session(forOptimiser: $0)?.shareURL }
+                    withGeneralPasteboard { pb in
+                        pb.clearContents()
+                        pb.setString(links.joined(separator: "\n"), forType: .string)
+                    }
+                    sm.selection = []
                 }
-                sm.selection = []
+            } else {
+                Button("Send files securely") {
+                    warpDropSend(optimisers: sm.optimisers)
+                    sm.selection = []
+                }
             }
-        } else {
-            Button("Send files securely") {
-                warpDropSend(optimisers: sm.optimisers)
-                sm.selection = []
-            }
-        }
+        #endif
         Button("Upload with Dropshare") {
             DROPSHARE.open(optimisers: sm.optimisers)
             sm.selection = []

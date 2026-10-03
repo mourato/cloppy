@@ -104,7 +104,7 @@ extension Defaults.Keys {
     static let useBatchModeForFolders = Key<Bool>("useBatchModeForFolders", default: true)
     static let batchModeFileCountThreshold = Key<Int>("batchModeFileCountThreshold", default: 30)
 
-    static let workdir = Key<String>("workdir", default: URL.cachesDirectory.appendingPathComponent("Clop", conformingTo: .directory).path)
+    static let workdir = Key<String>("workdir", default: URL.cachesDirectory.appendingPathComponent("Cloppy", conformingTo: .directory).path)
     static let workdirCleanupInterval = Key<CleanupInterval>("workdirCleanupInterval", default: .every3Days)
 
     static let formatsToConvertToJPEG = Key<Set<UTType>>("formatsToConvertToJPEG", default: [UTType.webP, UTType.avif, UTType.heic, UTType.bmp].compactMap { $0 }.set)

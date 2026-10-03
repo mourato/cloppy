@@ -2,81 +2,85 @@
 
 ## Project and ownership
 
-Cloppy is a fork of Clop, a native macOS media and clipboard optimiser.
-The Xcode project, targets, app bundle and shared scheme retain the Clop names.
+Cloppy is a personal macOS fork of Clop. Xcode project, shared scheme and target
+names remain `Clop`/`ClopCLI`; app is `Cloppy.app` (`local.cloppy.app`).
+`CLOPPY` compilation conditions isolate local access and startup from commercial
+activation, official Sparkle updates, iCloud sync, reporting and WarpDrop.
 
-- `Clop/`: SwiftUI/AppKit app, settings, optimisation engines and pipelines.
-- `ClopCLI/`: command-line client and MCP server.
-- `Shared.swift` and `Shared/`: contracts and types used across app and CLI.
-- `Clop.xcodeproj/`: target membership, dependencies, signing and build settings.
-- `Scripts/`: project scripts; preserve this directory's capitalisation.
+- `Clop/`: SwiftUI/AppKit app, optimisation engines, settings and pipelines.
+- `Clop/CloppyAccess.swift`: local access policy and compatibility helpers.
+- `ClopCLI/`: CLI and MCP server; Settings installs CLI as `~/.local/bin/cloppy`.
+- `Shared.swift` and `Shared/`: contracts and types shared by app and CLI.
+- `Clop.xcodeproj/`: target membership, pinned packages, signing and build settings.
+- `Scripts/`: build, signing, installation, validation and upstream update owners.
 
-Trace app and CLI callers before changing a shared request, response, setting
-or pipeline type. Preserve Codable compatibility, error replies, cancellation,
-file backups and concurrency limits when changing optimisation behaviour.
-Match existing Swift style and English product terminology.
+Trace app and CLI callers before changing shared requests, responses or settings.
+Preserve Codable compatibility, error replies, cancellation, file backups and
+concurrency limits. Match existing Swift style and English product terminology.
+Preserve configured macOS deployment targets and Swift language mode; guard newer
+platform APIs where needed.
 
-## Build and installation
+## Build, installation and upstream updates
 
+Before build, installation or upstream sync, read [README.md](README.md).
 Resolve `repo="$(git rev-parse --show-toplevel)"` in the checkout being changed.
-Use the root Makefile for its documented tasks; inspect targets with
-`make -C "$repo" -n <target>` before execution.
+Root Makefile owns commands; inspect `make -C "$repo" -n <target>` first.
 
-- `make -C "$repo" build`: signed Release build and DMG; a distribution task,
-  not a lightweight compilation check.
-- `make -C "$repo" install`: archive/export with Developer ID signing, then
-  replace `/Applications/Clop.app`. Run only when installation is requested.
+- `make -C "$repo" build`: Release build, local Apple Development signing and
+  bundle validation; output is `build/Cloppy.app`. Does not install or launch.
+- `make -C "$repo" install`: builds and replaces only `/Applications/Cloppy.app`
+  with staging, concurrency checks and rollback. Run when installation is requested.
+- `make -C "$repo" package`: builds and produces `build/Cloppy.zip`.
+- `make -C "$repo" check`: Python tests for installer and update orchestration.
+- `make -C "$repo" update`: stable upstream release in an isolated worktree;
+  tests, signed build and terminal review precede local integration.
 - `make -C "$repo" hooks`: enable this clone's versioned Git hooks.
 
-The Makefile uses external developer tools, including `fish` and `make-app`.
-The Xcode project references a local WarpDrop Swift package; verify that its
-configured relative path resolves from the task worktree before building.
-Report missing tools, packages or signing prerequisites instead of changing
-project dependencies or signing to work around them.
+Build uses Xcode and pinned Swift packages; retain `Package.resolved` and explicit
+dependency review. Signing resolves an existing Keychain identity with no silent
+ad-hoc fallback. Certificate names and fingerprints stay outside tracked files.
+The fork's build scripts replace the original developer's private tooling.
 
-App and CLI targets currently specify macOS 13 and Swift 5 language mode.
-Preserve configured deployment targets; guard newer platform APIs as needed.
-
-Installation must use the Makefile's Developer ID archive/export path.
-An Apple Development-signed Release installation can deactivate the licence.
-Do not use `xrel Clop --install` or copy an unsigned validation build over the
-installed app. Keep signing identities and entitlements intact.
+Cloppy has separate preferences, IPC ports, caches, URL scheme and MCP entries.
+Preserve coexistence with official Clop, local full access and disabled official
+updates. Keep MCP write/script authorization and binary/decompression safeguards.
+Preserve installer protections for symlinks, unexpected bundles, changed targets,
+locks and rollback. Do not substitute the upstream Clop install workflow.
 
 ## Validation
 
-There is no Makefile `test`/`validate` target or test target in the shared Clop
-scheme. Select proof for the changed behaviour; do not claim a passing test
-suite from a build or invent unavailable targets.
+Run changed-surface selection before choosing checks. `make check` is the complete
+tracked test suite for workflow scripts; app/CLI changes also require `make build`
+and focused behaviour proof. There is no XCTest target in the shared scheme.
 
-- Documentation: check references and `git diff --check`; no app build needed.
-- Shell hooks/scripts: syntax checks and isolated Git/filesystem fixtures.
-- Swift: focused compilation and behaviour proof for the changed owner.
-  For compile-only verification, use Xcode's Clop Debug scheme with a separate
-  DerivedData directory and `CODE_SIGNING_ALLOWED=NO`; this does not prove
-  installed-app signing, permissions or runtime behaviour.
-- UI: record an interaction and expected result; verify in the changed
-  worktree, or report the manual check as unavailable before integration.
+- Documentation: reference checks and `git diff --check`; no app build needed.
+- Shell/Python workflows: syntax checks and isolated tests through `make check`.
+- App/CLI: signed build, bundle validation and proof for the changed behaviour.
+- UI: record an interaction and expected result; verify in the changed worktree
+  or report the manual check as unavailable before integration.
 
-`ClopTests/`, private specs and corpora are ignored by Git. Preserve that
-publication boundary; private local tests may not exist in another checkout.
-`Clop/bin.tar.lrz` is tracked through Git LFS. Preserve LFS hooks and attributes.
-Release, upload, notarisation and Sentry tasks are explicit delivery operations.
+Build alone does not prove permissions, clipboard, media optimisation or UI.
+Use copies of media for manual checks. Tracked `tests/` differs from ignored
+private `ClopTests/`, specs and corpora; preserve their publication boundaries.
+`Clop/bin.tar.lrz` uses Git LFS. Preserve hooks, attributes and bundled tools.
 
 ## Git integration and cleanup
 
-Integration branch is `main`. Hooks are opt-in per clone through
-`core.hooksPath=.githooks`; they also retain the existing Git LFS behaviour.
-An authorised merge on `main`/`master` triggers push, followed by cleanup.
-Push failure skips cleanup. Merge authorisation includes these hook effects.
+`main` is our integration/default branch. `origin` is our fork; `upstream` is
+original Clop. `cloppy` remains a historical reference, not an integration target.
+Merge upstream releases through the reviewed update flow rather than replacing
+fork files with upstream versions; preserve Cloppy's Makefile and scripts.
 
-Cleanup delegates to
-`${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/cleanup-merged-worktrees.sh`;
-the agent-config checkout is a local prerequisite.
-Before integration, confirm the push upstream and helper's integration ref
-agree: the helper prefers `origin/HEAD`. A stale pointer to another branch
-must be resolved before automatic cleanup.
+Hooks are opt-in per clone through `core.hooksPath=.githooks` and retain Git LFS.
+Authorised merges on `main`/`master`, including approved `make update` integration,
+push before cleanup. Push failure skips cleanup; check actual results because a
+successful Git merge alone does not prove successful hook finalization.
+Cleanup may remove update-candidate artifacts; rebuild from `main` when needed.
 
+Cleanup delegates to the local agent-config checkout at
+`${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/cleanup-merged-worktrees.sh`.
+Before integration, confirm push upstream and helper integration ref agree;
+the helper prefers `origin/HEAD`, which should point to `origin/main`.
 Only clean, fully merged canonical `.worktrees/<slug>` checkouts with matching
-branch names qualify. Dirty and unmerged worktrees remain. Inspect a dry-run
-before manual cleanup and limit it to the current task with `--branch <slug>`.
-Report `MERGED`, `PUSHED` and `CLEANED` separately after checking actual state.
+branch names qualify. Inspect dry-run before manual cleanup; limit it to the
+current task with `--branch <slug>`. Report `MERGED`, `PUSHED`, `CLEANED` separately.

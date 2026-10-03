@@ -1,3 +1,103 @@
+# Cloppy
+
+Personal macOS fork of [Clop](https://github.com/FuzzyIdeas/Clop), based on v3.4.5.
+GPLv3; original attribution and licence remain. Full local optimisation has no
+commercial activation. WarpDrop, iCloud preference sync, Sentry reporting and
+official Sparkle updates are unavailable. Other network actions, such as downloading
+an input URL or running a user-configured integration, remain explicit app features.
+
+Our integration and default branch is `main`; `upstream` tracks the original Clop.
+The previous `cloppy` branch remains a historical reference.
+
+## Build and install
+
+Requires Xcode (tested toolchain: Xcode 27) and network for pinned Swift packages.
+Build targets this Mac’s native architecture. Bundled helper archive remains unchanged.
+Uses an existing Apple Development certificate in your Keychain, following GUGU's
+local build convention. No Paddle credentials or author's private build scripts required.
+
+```sh
+repo="$(git rev-parse --show-toplevel)"
+make -C "$repo" build
+make -C "$repo" install
+make -C "$repo" update
+make -C "$repo" package
+make -C "$repo" check
+```
+
+`make install` builds, signs and validates the app, requests graceful exit if
+Cloppy is running, and replaces only `/Applications/Cloppy.app`. It stages on the
+destination volume and restores the previous bundle on failure. It does not
+launch the app, change preferences or replace the official Clop. An existing
+installer lock, symlink, unexpected bundle or changed destination stops installation.
+The build is locally signed, not notarized for public distribution.
+
+Signing resolves `Apple Development` to a valid Keychain fingerprint before
+building and verifies the resulting certificate requirement. No silent ad-hoc
+fallback. Override with an existing certificate name or SHA-1 when needed:
+
+```sh
+CLOPPY_CODE_SIGN_IDENTITY='certificate name or SHA-1' make install
+```
+
+Certificate names/hashes remain outside tracked configuration. Build outputs
+live under `build/`; `CLOPPY_DERIVED_DATA_PATH` may reuse another local Xcode cache.
+`APPLICATIONS_DIR` overrides the installation directory for isolated testing.
+CLI installation from Settings uses `~/.local/bin/cloppy`. Clop can coexist:
+Cloppy owns `local.cloppy.app`, `cloppy://`, its IPC ports, caches and MCP entries.
+MCP write/script authorization gates remain intact. No existing Clop preferences
+are imported. Updating a local build does not require deleting its preferences.
+
+## Sync upstream
+
+`make update` performs the complete local sync flow against `upstream`:
+
+```sh
+make update
+```
+
+It requires a clean attached checkout, fetches version tags, ignores betas and
+selects the latest stable `vMAJOR.MINOR.PATCH` release. Already-current updates
+exit without changing your branch. New releases use the canonical worktree helper
+at `${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/new-worktree.sh` and an isolated
+`cloppy-update-vX-Y-Z` branch. Tests and signed build run before displaying the diff.
+Review happens in the terminal: check access, updater, telemetry, sharing,
+identity and permissions, then explicitly approve integration. A yes commits
+the merge candidate and fast-forwards your original branch to that exact candidate.
+Source/candidate changes during review block publication. Installation is separate;
+run `make install` afterward. With `make hooks` enabled, integration on `main`
+also invokes the post-merge push and cleanup finalizer. Push failure skips cleanup;
+inspect hook output to confirm each result. Cleanup may remove the validated
+candidate and its build artifacts; `make build` rebuilds from the integrated branch.
+
+Conflicts, failed checks or declined review preserve the original branch and
+leave the candidate for inspection. Resolve conflicts and stage the resolution
+in the reported worktree, then rerun `make update` from the original checkout.
+An existing candidate with another base/release stops rather than being reset.
+Without the post-merge finalizer, candidates remain after successful integration
+for build evidence and recovery.
+
+Retain Cloppy's Makefile and scripts when resolving upstream release-tooling
+conflicts; the original project's install flow targets the official app.
+
+The `CLOPPY` compilation condition separates local startup from commercial
+startup. Local full access lives in `Clop/CloppyAccess.swift`; the optimisation
+binary/decompression safeguards remain unchanged. Missing WarpDrop clients fail
+with an unavailable message rather than copying a fake link. Keep new upstream
+features from accidentally reintroducing activation, reports or official updates.
+
+Keep `Package.resolved` under version control. During each update review changes
+to it and Lowtech's APIs together. Resolve packages deliberately when upstream
+changes requirements, then review and commit the new lockfile. Regular build
+passes `-disableAutomaticPackageResolution` to avoid silently advancing branch pins.
+
+Manual release checks: image/video/PDF/audio optimisation, >5 items, clipboard,
+batch, restore, CLI and Shortcuts; separate Clop data/IPC, no automatic updater,
+no activation/reporting and unavailable WarpDrop. Build alone does not prove
+macOS permissions or every interaction. Do not publish as an official Clop build.
+
+---
+
 <p align="center">
     <a href="https://lowtechguys.com/clop"><img width="128" height="128" src="Clop/Assets.xcassets/clop.imageset/clop_256.png" style="filter: drop-shadow(0px 2px 4px rgba(80, 50, 6, 0.2));"></a>
     <h1 align="center"><code style="text-shadow: 0px 3px 10px rgba(8, 0, 6, 0.35); font-size: 3rem; font-family: ui-monospace, Menlo, monospace; font-weight: 800; background: transparent; color: #4d3e56; padding: 0.2rem 0.2rem; border-radius: 6px">Clop</code></h1>

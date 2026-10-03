@@ -196,7 +196,7 @@ struct MenuView: View {
             proErrors
         }
 
-        Menu("About...") {
+        Menu("About Cloppy") {
             Button("Contact the developer") {
                 NSWorkspace.shared.open(contactURL())
             }
@@ -206,8 +206,8 @@ struct MenuView: View {
             Button("Privacy policy") {
                 NSWorkspace.shared.open("https://lowtechguys.com/clop/privacy".url!)
             }
-            Text("License: \(proactive ? "Pro" : "Free")")
-            #if DEBUG
+            Text("Cloppy · full local optimisation")
+            #if DEBUG && !CLOPPY
                 Button("Reset Trial") {
                     product?.resetTrial()
                 }
@@ -218,19 +218,21 @@ struct MenuView: View {
             Text("Version: v\(Bundle.main.version)")
         }
 
-        Button("Manage license") {
-            manageLicenceInSettings()
-        }
+        #if !CLOPPY
+            Button("Manage license") {
+                manageLicenceInSettings()
+            }
 
-        Button(um.newVersion != nil ? "v\(um.newVersion!) update available" : "Check for updates") {
-            checkForUpdates()
-            focus()
-        }
+            Button(um.newVersion != nil ? "v\(um.newVersion!) update available" : "Check for updates") {
+                checkForUpdates()
+                focus()
+            }
 
-        Toggle("Show Clop UI in screenshots", isOn: $allowClopToAppearInScreenshots)
+        #endif
+        Toggle("Show Cloppy UI in screenshots", isOn: $allowClopToAppearInScreenshots)
             .searchAnchor("general.main.allowClopToAppearInScreenshots")
         Divider()
-        Button("Quit") {
+        Button("Quit Cloppy") {
             NSApp.terminate(nil)
         }.keyboardShortcut("q")
     }
