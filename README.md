@@ -10,17 +10,36 @@ an input URL or running a user-configured integration, remain explicit app featu
 
 Requires Xcode (tested toolchain: Xcode 27) and network for pinned Swift packages.
 Build targets this Mac’s native architecture. Bundled helper archive remains unchanged.
-No paid certificate, Paddle credentials or author's private scripts required.
+Uses an existing Apple Development certificate in your Keychain, following GUGU's
+local build convention. No Paddle credentials or author's private build scripts required.
 
 ```sh
 repo="$(git rev-parse --show-toplevel)"
 make -C "$repo" build
+make -C "$repo" install
+make -C "$repo" update
 make -C "$repo" package
-open "$repo/build"
+make -C "$repo" check
 ```
 
-Copy `build/Cloppy.app` to Applications using Finder. First launch may require
-macOS confirmation because this local build is ad-hoc signed, not notarized.
+`make install` builds, signs and validates the app, requests graceful exit if
+Cloppy is running, and replaces only `/Applications/Cloppy.app`. It stages on the
+destination volume and restores the previous bundle on failure. It does not
+launch the app, change preferences or replace the official Clop. An existing
+installer lock, symlink, unexpected bundle or changed destination stops installation.
+The build is locally signed, not notarized for public distribution.
+
+Signing resolves `Apple Development` to a valid Keychain fingerprint before
+building and verifies the resulting certificate requirement. No silent ad-hoc
+fallback. Override with an existing certificate name or SHA-1 when needed:
+
+```sh
+CLOPPY_CODE_SIGN_IDENTITY='certificate name or SHA-1' make install
+```
+
+Certificate names/hashes remain outside tracked configuration. Build outputs
+live under `build/`; `CLOPPY_DERIVED_DATA_PATH` may reuse another local Xcode cache.
+`APPLICATIONS_DIR` overrides the installation directory for isolated testing.
 CLI installation from Settings uses `~/.local/bin/cloppy`. Clop can coexist:
 Cloppy owns `local.cloppy.app`, `cloppy://`, its IPC ports, caches and MCP entries.
 MCP write/script authorization gates remain intact. No existing Clop preferences
@@ -28,21 +47,31 @@ are imported. Updating a local build does not require deleting its preferences.
 
 ## Sync upstream
 
-Keep the original Git history and the `upstream` remote. Update under a review
-branch; merge only after build and manual checks, never reset over local patches.
+`make update` performs the complete local sync flow against `upstream`:
 
 ```sh
-git fetch upstream --tags
-git switch -c update-clop-vNEXT
-git merge --no-commit vNEXT
-# Resolve conflicts; inspect new startup/licensing/updater/integration code.
-make -C "$(git rev-parse --show-toplevel)" build
-git diff --check
-# Commit reviewed update, then integrate into your local maintained branch.
+make update
 ```
 
-Retain Cloppy’s local Makefile when upstream release tooling changes. Never run
-upstream `make install`, which targets the official app.
+It requires a clean attached checkout, fetches version tags, ignores betas and
+selects the latest stable `vMAJOR.MINOR.PATCH` release. Already-current updates
+exit without changing your branch. New releases use the canonical worktree helper
+at `${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/new-worktree.sh` and an isolated
+`cloppy-update-vX-Y-Z` branch. Tests and signed build run before displaying the diff.
+Review happens in the terminal: check access, updater, telemetry, sharing,
+identity and permissions, then explicitly approve integration. A yes commits
+the merge candidate and fast-forwards your original branch to that exact candidate.
+Source/candidate changes during review block publication. No push or installation
+is included; run `make install` afterward.
+
+Conflicts, failed checks or declined review preserve the original branch and
+leave the candidate for inspection. Resolve conflicts and stage the resolution
+in the reported worktree, then rerun `make update` from the original checkout.
+An existing candidate with another base/release stops rather than being reset.
+Candidates remain after successful integration for build evidence and recovery.
+
+Retain Cloppy's Makefile and scripts when resolving upstream release-tooling
+conflicts; the original project's install flow targets the official app.
 
 The `CLOPPY` compilation condition separates local startup from commercial
 startup. Local full access lives in `Clop/CloppyAccess.swift`; the optimisation
