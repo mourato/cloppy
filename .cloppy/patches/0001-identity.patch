@@ -1,0 +1,608 @@
+diff --git a/Clop/Clop.entitlements b/Clop/Clop.entitlements
+index 533c0be..df8e427 100644
+--- a/Clop/Clop.entitlements
++++ b/Clop/Clop.entitlements
+@@ -2,19 +2,15 @@
+ <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+ <plist version="1.0">
+ <dict>
+-	<key>com.apple.developer.icloud-container-identifiers</key>
+-	<array/>
+-	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+-	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+ 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+ 	<array>
+-		<string>com.lowtechguys.Clop.optimisationServiceResponse</string>
+-		<string>com.lowtechguys.Clop.optimisationServiceResponseCLI</string>
++		<string>local.cloppy.app.optimisationServiceResponse</string>
++		<string>local.cloppy.app.optimisationServiceResponseCLI</string>
+ 	</array>
+ 	<key>com.apple.security.temporary-exception.mach-register.global-name</key>
+ 	<array>
+-		<string>com.lowtechguys.Clop.optimisationService</string>
+-		<string>com.lowtechguys.Clop.optimisationServiceStop</string>
++		<string>local.cloppy.app.optimisationService</string>
++		<string>local.cloppy.app.optimisationServiceStop</string>
+ 	</array>
+ </dict>
+ </plist>
+diff --git a/Clop/ClopUtils.swift b/Clop/ClopUtils.swift
+index 50c41cb..dc44dac 100644
+--- a/Clop/ClopUtils.swift
++++ b/Clop/ClopUtils.swift
+@@ -909,17 +909,17 @@ func tryProcAsync(_ cmd: String, args: [String], tries: Int, env: [String: Strin
+     return proc
+ }
+ 
+-let LRZIP = Bundle.main.url(forResource: "lrzip", withExtension: "")! // /Applications/Clop.app/Contents/Resources/lrzip
+-let BIN_ARCHIVE = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz")! // /Applications/Clop.app/Contents/Resources/bin.tar.lrz
+-let BIN_ARCHIVE_HASH_PATH = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz.sha256")! // /Applications/Clop.app/Contents/Resources/bin.tar.lrz.sha256
++let LRZIP = Bundle.main.url(forResource: "lrzip", withExtension: "")! // /Applications/Cloppy.app/Contents/Resources/lrzip
++let BIN_ARCHIVE = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz")! // /Applications/Cloppy.app/Contents/Resources/bin.tar.lrz
++let BIN_ARCHIVE_HASH_PATH = Bundle.main.url(forResource: "bin", withExtension: "tar.lrz.sha256")! // /Applications/Cloppy.app/Contents/Resources/bin.tar.lrz.sha256
+ 
+ let OLD_BIN_DIRS = [
+-    APP_SCRIPTS_DIR.appendingPathComponent("com.lowtechguys.Clop"), // ~/Library/Application Scripts/com.lowtechguys.Clop/com.lowtechguys.Clop/
+-    APP_SCRIPTS_DIR.appendingPathComponent("bin-arm64"), // ~/Library/Application Scripts/com.lowtechguys.Clop/bin-arm64
+-    APP_SCRIPTS_DIR.appendingPathComponent("bin-x86"), // ~/Library/Application Scripts/com.lowtechguys.Clop/bin-x86
++    APP_SCRIPTS_DIR.appendingPathComponent("local.cloppy.app"), // ~/Library/Application Scripts/local.cloppy.app/local.cloppy.app/
++    APP_SCRIPTS_DIR.appendingPathComponent("bin-arm64"), // ~/Library/Application Scripts/local.cloppy.app/bin-arm64
++    APP_SCRIPTS_DIR.appendingPathComponent("bin-x86"), // ~/Library/Application Scripts/local.cloppy.app/bin-x86
+ ]
+ let BIN_ARCHIVE_HASH = fm.contents(atPath: BIN_ARCHIVE_HASH_PATH.path)! // f62955f10479b7df4d516f8a714290f2402faaf8960c6c44cae3dfc68f45aabd
+-let BIN_HASH_FILE = BIN_DIR.appendingPathComponent("sha256hash") // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/sha256hash
++let BIN_HASH_FILE = BIN_DIR.appendingPathComponent("sha256hash") // ~/Library/Application Scripts/local.cloppy.app/bin/sha256hash
+ 
+ func nsalert(error: String) {
+     mainThread {
+@@ -986,7 +986,7 @@ func nsalert(error: String) {
+         }
+ 
+         // The standalone `clop` CLI resolves `applicationScriptsDirectory` to its own
+-        // bundle id (com.lowtechguys.Clop.CLI), so symlink that directory to the app's
++        // bundle id (local.cloppy.app.CLI), so symlink that directory to the app's
+         // own Application Scripts directory to let the CLI find the bundled binaries.
+         let cliDir = GLOBAL_BIN_DIR_PARENT.deletingLastPathComponent().appendingPathComponent("\(GLOBAL_BIN_DIR_PARENT.lastPathComponent).CLI")
+         if fm.fileExists(atPath: cliDir.path), (try? fm.destinationOfSymbolicLink(atPath: cliDir.path)) != GLOBAL_BIN_DIR_PARENT.path {
+diff --git a/Clop/FloatingResult.swift b/Clop/FloatingResult.swift
+index f62a17c..7c541c0 100644
+--- a/Clop/FloatingResult.swift
++++ b/Clop/FloatingResult.swift
+@@ -383,7 +383,7 @@ var audioPreviewThumbnail: NSImage {
+ /// "Show in Finder" and deletes them, nothing breaks. Preview optimisers are also gated against
+ /// every file-mutating action, so these stay strictly read-only demo files.
+ var previewSamplesDir: FilePath {
+-    FilePath.dir(FilePath(NSTemporaryDirectory()) / "com.lowtechguys.Clop" / "preview-samples", permissions: 0o755)
++    FilePath.dir(FilePath(NSTemporaryDirectory()) / "local.cloppy.app" / "preview-samples", permissions: 0o755)
+ }
+ 
+ /// Materialise a bundled preview sample (a `.dataset` in the asset catalog) to a temp file, so the
+diff --git a/Clop/Info.plist b/Clop/Info.plist
+index 7236a8c..4a67476 100644
+--- a/Clop/Info.plist
++++ b/Clop/Info.plist
+@@ -2,6 +2,8 @@
+ <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+ <plist version="1.0">
+ <dict>
++	<key>CFBundleDisplayName</key>
++	<string>Cloppy</string>
+ 	<key>CFBundleDocumentTypes</key>
+ 	<array>
+ 		<dict>
+@@ -180,10 +182,10 @@
+ 			<key>CFBundleTypeRole</key>
+ 			<string>Viewer</string>
+ 			<key>CFBundleURLName</key>
+-			<string>com.lowtechguys.Clop</string>
++			<string>local.cloppy.app</string>
+ 			<key>CFBundleURLSchemes</key>
+ 			<array>
+-				<string>clop</string>
++				<string>cloppy</string>
+ 			</array>
+ 		</dict>
+ 	</array>
+@@ -225,9 +227,9 @@
+ 		<true/>
+ 	</dict>
+ 	<key>NSPhotoLibraryUsageDescription</key>
+-	<string>Clop needs access to your Photos library to retrieve full-resolution images copied from Photos.app</string>
++	<string>Cloppy needs access to your Photos library to retrieve full-resolution images copied from Photos.app</string>
+ 	<key>NSPrincipalClass</key>
+-	<string>SentryCrashExceptionApplication</string>
++	<string>NSApplication</string>
+ 	<key>NSServices</key>
+ 	<array>
+ 		<dict>
+@@ -239,7 +241,7 @@
+ 			<key>NSMessage</key>
+ 			<string>stripEXIFService</string>
+ 			<key>NSPortName</key>
+-			<string>Clop</string>
++			<string>Cloppy</string>
+ 			<key>NSRequiredContext</key>
+ 			<dict/>
+ 			<key>NSReturnTypes</key>
+@@ -276,12 +278,12 @@
+ 			<key>NSMenuItem</key>
+ 			<dict>
+ 				<key>default</key>
+-				<string>Optimise with Clop</string>
++				<string>Optimise with Cloppy</string>
+ 			</dict>
+ 			<key>NSMessage</key>
+ 			<string>optimisationService</string>
+ 			<key>NSPortName</key>
+-			<string>Clop</string>
++			<string>Cloppy</string>
+ 			<key>NSRequiredContext</key>
+ 			<dict/>
+ 			<key>NSReturnTypes</key>
+@@ -310,12 +312,12 @@
+ 			<key>NSMenuItem</key>
+ 			<dict>
+ 				<key>default</key>
+-				<string>Optimise with Clop</string>
++				<string>Optimise with Cloppy</string>
+ 			</dict>
+ 			<key>NSMessage</key>
+ 			<string>optimisationService</string>
+ 			<key>NSPortName</key>
+-			<string>Clop</string>
++			<string>Cloppy</string>
+ 			<key>NSRequiredContext</key>
+ 			<dict>
+ 				<key>NSServiceCategory</key>
+@@ -350,28 +352,5 @@
+ 			</array>
+ 		</dict>
+ 	</array>
+-	<key>OSLogPreferences</key>
+-	<dict>
+-		<key>com.lowtechguys.Clop</key>
+-		<dict>
+-			<key>DEFAULT-OPTIONS</key>
+-			<dict>
+-				<key>Enable-Private-Data</key>
+-				<true/>
+-			</dict>
+-		</dict>
+-		<key>com.lowtechguys.Clop-setapp</key>
+-		<dict>
+-			<key>DEFAULT-OPTIONS</key>
+-			<dict>
+-				<key>Enable-Private-Data</key>
+-				<true/>
+-			</dict>
+-		</dict>
+-	</dict>
+-	<key>SUFeedURL</key>
+-	<string>https://files.lowtechguys.com/clop/appcast.xml</string>
+-	<key>SUPublicEDKey</key>
+-	<string>lqnO6tg2A9evTIFo2SC9ArZ6NS84gtBshcAWdwh12xQ=</string>
+ </dict>
+ </plist>
+diff --git a/Clop/InstallCLI.swift b/Clop/InstallCLI.swift
+index 64ef542..98bbd41 100644
+--- a/Clop/InstallCLI.swift
++++ b/Clop/InstallCLI.swift
+@@ -14,8 +14,8 @@ struct InstallCLIError: Error {
+ let CLOP_CLI_BIN = "\(Bundle.main.sharedSupportPath!)/ClopCLI"
+ let CLI_BIN_DIR = "\(HOME)/.local/bin"
+ let CLI_BIN_DIR_ENV = "$HOME/.local/bin"
+-let CLOP_CLI_BIN_LINK = "\(CLI_BIN_DIR)/clop"
+-let CLOP_CLI_BIN_SHELL = "~/.local/bin/clop"
++let CLOP_CLI_BIN_LINK = "\(CLI_BIN_DIR)/cloppy"
++let CLOP_CLI_BIN_SHELL = "~/.local/bin/cloppy"
+ let ZSHRC = "\(HOME)/.zshrc"
+ let BASHRC = "\(HOME)/.bashrc"
+ let FISHRC = "\(HOME)/.config/fish/config.fish"
+diff --git a/Clop/MCPInstaller.swift b/Clop/MCPInstaller.swift
+index 419a042..2c424ea 100644
+--- a/Clop/MCPInstaller.swift
++++ b/Clop/MCPInstaller.swift
+@@ -4,7 +4,7 @@ import Foundation
+ import LowtechPro
+ import os
+ 
+-private let mcpLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.lowtechguys.Clop", category: "MCP")
++private let mcpLog = Logger(subsystem: Bundle.main.bundleIdentifier ?? "local.cloppy.app", category: "MCP")
+ 
+ // MARK: - MCPInstaller
+ 
+@@ -68,7 +68,7 @@ enum MCPInstaller {
+         case unusable
+     }
+ 
+-    static let serverName = "clop"
++    static let serverName = "cloppy"
+ 
+     static let clients: [Client] = [
+         Client(
+@@ -120,7 +120,7 @@ enum MCPInstaller {
+         if FileManager.default.isExecutableFile(atPath: bundled) {
+             return bundled
+         }
+-        return ("~/.local/bin/clop" as NSString).expandingTildeInPath
++        return ("~/.local/bin/cloppy" as NSString).expandingTildeInPath
+     }
+ 
+     /// Whether the server can actually run. Installing without it writes a config entry that looks
+@@ -131,17 +131,17 @@ enum MCPInstaller {
+ 
+     /// The one-liner for a client that is driven from a terminal.
+     static var cliCommand: String {
+-        "claude mcp add --scope user clop -- \(cliPath) \(serveArgs.joined(separator: " "))"
++        "claude mcp add --scope user cloppy -- \(cliPath) \(serveArgs.joined(separator: " "))"
+     }
+ 
+     static var cardURL: URL {
+         FileManager.default.homeDirectoryForCurrentUser
+-            .appendingPathComponent(".well-known/mcp/clop.json")
++            .appendingPathComponent(".well-known/mcp/cloppy.json")
+     }
+ 
+     static var supportDirectory: URL {
+         FileManager.default.homeDirectoryForCurrentUser
+-            .appendingPathComponent("Library/Application Support/Clop", isDirectory: true)
++            .appendingPathComponent("Library/Application Support/Cloppy", isDirectory: true)
+     }
+ 
+     // MARK: - The switch
+@@ -159,7 +159,7 @@ enum MCPInstaller {
+         mcpLog.info("MCP \(enabled ? "enabled" : "disabled", privacy: .public)")
+     }
+ 
+-    /// Handles `clop://mcp/start` and `clop://mcp/stop`. Returns false for a URL that is not ours, so
++    /// Handles `cloppy://mcp/start` and `cloppy://mcp/stop`. Returns false for a URL that is not ours, so
+     /// the caller can keep handling it.
+     ///
+     /// Start ASKS. The URL is what an agent opens when a tool of its own was refused, so nothing but
+@@ -167,7 +167,7 @@ enum MCPInstaller {
+     /// behind someone who just turned it off would make every line of copy about this a lie. Stop
+     /// needs no alert: it only ever takes permission away.
+     @MainActor static func handle(url: URL) -> Bool {
+-        guard url.scheme == "clop", url.host == "mcp" else { return false }
++        guard url.scheme == "cloppy", url.host == "mcp" else { return false }
+         switch url.lastPathComponent {
+         case "start":
+             guard !Defaults[.mcpEnabled] else { return true }
+@@ -197,14 +197,19 @@ enum MCPInstaller {
+     /// this path, but the same words would teach the trick for the CLI and Shortcuts paths, whose free
+     /// counters do reset on relaunch by design.
+     @MainActor static func writeServerCard() {
++        #if CLOPPY
++            let requiresPro = false
++        #else
++            let requiresPro = true
++        #endif
+         let card: [String: Any] = [
+             "name": serverName,
+-            "displayName": "Clop",
++            "displayName": "Cloppy",
+             "description": "Image, video, PDF and audio optimisation. Run pipelines over files, downscale, convert, crop, author new pipelines, and read or change any Clop setting.",
+             "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?",
+-            "app": ["bundleID": "com.lowtechguys.Clop", "path": Bundle.main.bundlePath],
++            "app": ["bundleID": "local.cloppy.app", "path": Bundle.main.bundlePath],
+             "enabled": Defaults[.mcpEnabled],
+-            "requiresPro": true,
++            "requiresPro": requiresPro,
+             "pro": proactive,
+             "transport": [
+                 "type": "stdio",
+@@ -212,9 +217,9 @@ enum MCPInstaller {
+                 "args": serveArgs,
+             ],
+             "control": [
+-                "start": "open clop://mcp/start",
+-                "stop": "open clop://mcp/stop",
+-                "note": "Clop's MCP server needs Clop Pro. With a licence, reading works whether or not it is started; changes are refused until it is. Starting sticks across launches until it is stopped.",
++                "start": "open cloppy://mcp/start",
++                "stop": "open cloppy://mcp/stop",
++                "note": "Reading works whether or not the server is started; changes require explicit permission in Cloppy Settings. Starting sticks across launches until stopped.",
+             ],
+         ]
+         guard let data = try? JSONSerialization.data(withJSONObject: card, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]) else { return }
+diff --git a/Clop/Onboarding.swift b/Clop/Onboarding.swift
+index a90eb49..2c2fa06 100644
+--- a/Clop/Onboarding.swift
++++ b/Clop/Onboarding.swift
+@@ -104,7 +104,7 @@ struct OnboardingView: View {
+ 
+     var clopLogo: some View {
+         ZStack(alignment: .topLeading) {
+-            Text("Clop")
++            Text("Cloppy")
+                 .font(.round(64, weight: .black))
+             SwiftUI.Image("clop")
+                 .resizable()
+@@ -145,7 +145,7 @@ struct OnboardingView: View {
+                     VStack(alignment: .trailing) {
+                         menubar
+                         Text("""
+-                        Clop lives in your **menubar** and waits for you
++                        Cloppy lives in your **menubar** and waits for you
+                         to copy an image or **screenshot to clipboard**.
+                         """)
+                         .font(.round(14, weight: .regular))
+@@ -185,7 +185,7 @@ struct OnboardingView: View {
+                 .padding(.bottom, 20)
+ 
+                 Text("""
+-                Clop can also watch folders for new **images** and **videos**
++                Cloppy can also watch folders for new **images** and **videos**
+                 and **automatically** optimise them.
+                 """)
+                 .font(.round(14, weight: .regular))
+@@ -208,7 +208,7 @@ struct OnboardingView: View {
+                         .progressViewStyle(.linear)
+                         .padding()
+                 } else {
+-                    Button("Start using Clop") {
++                    Button("Start using Cloppy") {
+                         (AppDelegate.instance as? AppDelegate)?.onboardingWindowController?.close()
+                     }
+                     .font(.round(14, weight: .semibold))
+diff --git a/Clop/Settings.swift b/Clop/Settings.swift
+index 562a999..aae276e 100644
+--- a/Clop/Settings.swift
++++ b/Clop/Settings.swift
+@@ -104,7 +104,7 @@ extension Defaults.Keys {
+     static let useBatchModeForFolders = Key<Bool>("useBatchModeForFolders", default: true)
+     static let batchModeFileCountThreshold = Key<Int>("batchModeFileCountThreshold", default: 30)
+ 
+-    static let workdir = Key<String>("workdir", default: URL.cachesDirectory.appendingPathComponent("Clop", conformingTo: .directory).path)
++    static let workdir = Key<String>("workdir", default: URL.cachesDirectory.appendingPathComponent("Cloppy", conformingTo: .directory).path)
+     static let workdirCleanupInterval = Key<CleanupInterval>("workdirCleanupInterval", default: .every3Days)
+ 
+     static let formatsToConvertToJPEG = Key<Set<UTType>>("formatsToConvertToJPEG", default: [UTType.webP, UTType.avif, UTType.heic, UTType.bmp].compactMap { $0 }.set)
+diff --git a/Clop/SettingsURL.swift b/Clop/SettingsURL.swift
+index c9f462c..d773594 100644
+--- a/Clop/SettingsURL.swift
++++ b/Clop/SettingsURL.swift
+@@ -1,13 +1,13 @@
+ import Foundation
+ 
+-/// `clop://settings/<tab>[/<row>]` (or `?highlight=<row>`) opens Settings on a tab and flashes one
++/// `cloppy://settings/<tab>[/<row>]` (or `?highlight=<row>`) opens Settings on a tab and flashes one
+ /// row. The row id is the row's search anchor, which is also its accessibility identifier, so an
+ /// agent that read one off the window can come straight back to it.
+ enum SettingsURL {
+     /// True when the URL was ours, resolved or not: a claimed URL must never reach the file
+     /// optimiser, which would try to fetch it.
+     @MainActor static func handle(url: URL) -> Bool {
+-        guard url.scheme == "clop", url.host == "settings" else { return false }
++        guard url.scheme == "cloppy", url.host == "settings" else { return false }
+ 
+         let parts = url.pathComponents.filter { $0 != "/" }
+         if let tab = parts.first.flatMap(tab(named:)) {
+diff --git a/ClopCLI/ClopCLI.entitlements b/ClopCLI/ClopCLI.entitlements
+index 3b86d4b..e074fd2 100644
+--- a/ClopCLI/ClopCLI.entitlements
++++ b/ClopCLI/ClopCLI.entitlements
+@@ -4,12 +4,12 @@
+ <dict>
+ 	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+ 	<array>
+-		<string>com.lowtechguys.Clop.optimisationService</string>
+-		<string>com.lowtechguys.Clop.optimisationServiceStop</string>
++		<string>local.cloppy.app.optimisationService</string>
++		<string>local.cloppy.app.optimisationServiceStop</string>
+ 	</array>
+ 	<key>com.apple.security.temporary-exception.mach-register.global-name</key>
+ 	<array>
+-		<string>com.lowtechguys.Clop.optimisationServiceResponseCLI</string>
++		<string>local.cloppy.app.optimisationServiceResponseCLI</string>
+ 	</array>
+ </dict>
+ </plist>
+diff --git a/ClopCLI/Info.plist b/ClopCLI/Info.plist
+index cdf4846..bdd16a7 100644
+--- a/ClopCLI/Info.plist
++++ b/ClopCLI/Info.plist
+@@ -3,25 +3,6 @@
+ <plist version="1.0">
+ <dict>
+ 	<key>CFBundleIdentifier</key>
+-	<string>com.lowtechguys.Clop.CLI</string>
+-	<key>OSLogPreferences</key>
+-	<dict>
+-		<key>com.lowtechguys.Clop.CLI</key>
+-		<dict>
+-			<key>DEFAULT-OPTIONS</key>
+-			<dict>
+-				<key>Enable-Private-Data</key>
+-				<true/>
+-			</dict>
+-		</dict>
+-		<key>com.lowtechguys.Clop</key>
+-		<dict>
+-			<key>DEFAULT-OPTIONS</key>
+-			<dict>
+-				<key>Enable-Private-Data</key>
+-				<true/>
+-			</dict>
+-		</dict>
+-	</dict>
++	<string>local.cloppy.app.CLI</string>
+ </dict>
+ </plist>
+diff --git a/ClopCLI/MCPServer.swift b/ClopCLI/MCPServer.swift
+index b251ab5..e75ae09 100644
+--- a/ClopCLI/MCPServer.swift
++++ b/ClopCLI/MCPServer.swift
+@@ -73,7 +73,7 @@ enum MCPServer {
+ 
+     // MARK: Protocol constants
+ 
+-    static let serverName = "clop-mcp"
++    static let serverName = "cloppy-mcp"
+     static let serverVersion = "2.0.0"
+ 
+     /// Only the fallback for a client that omits the field. The negotiated version is whatever the
+diff --git a/ClopCLI/MCPTools.swift b/ClopCLI/MCPTools.swift
+index f01acae..d858d77 100644
+--- a/ClopCLI/MCPTools.swift
++++ b/ClopCLI/MCPTools.swift
+@@ -283,14 +283,14 @@ extension MCPServer {
+ extension MCPServer {
+     /// The discovery card the app writes on every launch. A hint, never a requirement.
+     static func card() -> [String: Any] {
+-        let path = ("~/.well-known/mcp/clop.json" as NSString).expandingTildeInPath
++        let path = ("~/.well-known/mcp/cloppy.json" as NSString).expandingTildeInPath
+         guard let data = FileManager.default.contents(atPath: path),
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+         else { return [:] }
+         return object
+     }
+ 
+-    /// Hands `clop://mcp/<action>` to the app, launching it if it is not running.
++    /// Hands `cloppy://mcp/<action>` to the app, launching it if it is not running.
+     ///
+     /// Aimed at the app the card names: with a debug build next to /Applications, plain `open` picks
+     /// whichever LaunchServices prefers, which may not be the one this server belongs to.
+@@ -298,9 +298,9 @@ extension MCPServer {
+         let process = Process()
+         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+         if let app = (card()["app"] as? [String: Any])?["path"] as? String, FileManager.default.fileExists(atPath: app) {
+-            process.arguments = ["-a", app, "clop://mcp/\(action)"]
++            process.arguments = ["-a", app, "cloppy://mcp/\(action)"]
+         } else {
+-            process.arguments = ["clop://mcp/\(action)"]
++            process.arguments = ["cloppy://mcp/\(action)"]
+         }
+         process.standardOutput = FileHandle.nullDevice
+         process.standardError = FileHandle.nullDevice
+@@ -314,7 +314,7 @@ extension MCPServer {
+ 
+     /// Asks Clop to allow changes through MCP, launching it if it is not running.
+     ///
+-    /// Opening the URL is what makes this work while nothing is listening: macOS hands `clop://` to
++    /// Opening the URL is what makes this work while nothing is listening: macOS hands `cloppy://` to
+     /// the app and launches it first if needed. Clop then shows an alert and waits for a person, so
+     /// the wait here is a person's wait.
+     static func startServer(wait: TimeInterval = 90) throws -> ToolOutput {
+diff --git a/ClopCLI/main.swift b/ClopCLI/main.swift
+index ad7c549..650e695 100644
+--- a/ClopCLI/main.swift
++++ b/ClopCLI/main.swift
+@@ -32,7 +32,7 @@ extension URL {
+ }
+ 
+ extension UserDefaults {
+-    static let app: UserDefaults? = .init(suiteName: "com.lowtechguys.Clop")
++    static let app: UserDefaults? = .init(suiteName: "local.cloppy.app")
+ }
+ 
+ extension FileBehaviour: ExpressibleByArgument {
+@@ -58,7 +58,7 @@ let SIZE_REGEX = #/(\d+)\s*[xX×]\s*(\d+)/#
+ let RATIO_REGEX = #/(\d+)[.,]?(\d*)\s*:\s*(\d+)[.,]?(\d*)/#
+ let CLOP_APP: URL = {
+     let u = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+-    return u.pathExtension == "app" ? u : URL(fileURLWithPath: "/Applications/Clop.app")
++    return u.pathExtension == "app" ? u : URL(fileURLWithPath: "/Applications/Cloppy.app")
+ }()
+ 
+ var currentRequestIDs: [String] = []
+@@ -742,14 +742,13 @@ func convertPipelineDSL(to format: String, output: String?) -> String {
+ }
+ 
+ /// Resolve a bundled binary installed by the Clop app. The standalone CLI resolves
+-/// `applicationScriptsDirectory` to its own bundle id (com.lowtechguys.Clop.CLI), which
++/// `applicationScriptsDirectory` to its own bundle id (local.cloppy.app.CLI), which
+ /// may not have the bin symlink yet (e.g. before the app has run), so fall back to the
+ /// app's known Application Scripts locations.
+ func resolveBundledBinary(_ name: String) -> String? {
+     let candidates = [
+         BIN_DIR.appendingPathComponent(name).path,
+-        "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop/bin/\(ARCH)/\(name)",
+-        "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop-setapp/bin/\(ARCH)/\(name)",
++        "\(NSHomeDirectory())/Library/Application Scripts/local.cloppy.app/bin/\(ARCH)/\(name)",
+     ]
+     return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+ }
+@@ -2786,7 +2785,7 @@ struct Clop: ParsableCommand {
+                 let enabled = defaults?.bool(forKey: "mcpEnabled") ?? false
+                 let scripts = defaults?.bool(forKey: "mcpAllowScriptSteps") ?? false
+ 
+-                let cardPath = ("~/Library/Application Support/Clop/mcp.json" as NSString).expandingTildeInPath
++                let cardPath = ("~/Library/Application Support/Cloppy/mcp.json" as NSString).expandingTildeInPath
+                 let card = (try? Data(contentsOf: URL(fileURLWithPath: cardPath)))
+                     .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+ 
+@@ -2817,7 +2816,7 @@ struct Clop: ParsableCommand {
+                         print("App:             \(path)")
+                     }
+                     if !enabled {
+-                        print("\nAsk the user to allow it in Clop Settings, MCP, or run: open clop://mcp/start")
++                        print("\nAsk the user to allow it in Clop Settings, MCP, or run: open cloppy://mcp/start")
+                     }
+                     return
+                 }
+@@ -2849,7 +2848,8 @@ struct Clop: ParsableCommand {
+     }
+ 
+     static let configuration = CommandConfiguration(
+-        abstract: "Clop: optimise, crop and downscale images, videos, audio files and PDFs",
++        commandName: "cloppy",
++        abstract: "Cloppy: optimise, crop and downscale images, videos, audio files and PDFs",
+         subcommands: [
+             Optimise.self,
+             Crop.self,
+diff --git a/Shared.swift b/Shared.swift
+index fde8d48..5333f82 100644
+--- a/Shared.swift
++++ b/Shared.swift
+@@ -260,11 +260,11 @@ func awaitSync(_ action: @escaping () async -> Void) {
+     sem.wait()
+ }
+ 
+-let OPTIMISATION_PORT_ID = "com.lowtechguys.Clop.optimisationService"
+-let OPTIMISATION_STOP_PORT_ID = "com.lowtechguys.Clop.optimisationServiceStop"
+-let OPTIMISATION_RESPONSE_PORT_ID = "com.lowtechguys.Clop.optimisationServiceResponse"
+-let OPTIMISATION_CLI_RESPONSE_PORT_ID = "com.lowtechguys.Clop.optimisationServiceResponseCLI"
+-let SETTINGS_PORT_ID = "com.lowtechguys.Clop.settingsService"
++let OPTIMISATION_PORT_ID = "local.cloppy.app.optimisationService"
++let OPTIMISATION_STOP_PORT_ID = "local.cloppy.app.optimisationServiceStop"
++let OPTIMISATION_RESPONSE_PORT_ID = "local.cloppy.app.optimisationServiceResponse"
++let OPTIMISATION_CLI_RESPONSE_PORT_ID = "local.cloppy.app.optimisationServiceResponseCLI"
++let SETTINGS_PORT_ID = "local.cloppy.app.settingsService"
+ 
+ // MARK: - Settings over the wire
+ 
+@@ -741,8 +741,7 @@ struct OptimisationRequest: Codable, Identifiable {
+ }
+ 
+ func runningClopApp() -> NSRunningApplication? {
+-    NSRunningApplication.runningApplications(withBundleIdentifier: "com.lowtechguys.Clop-setapp").first
+-        ?? NSRunningApplication.runningApplications(withBundleIdentifier: "com.lowtechguys.Clop").first
++    NSRunningApplication.runningApplications(withBundleIdentifier: "local.cloppy.app").first
+ }
+ 
+ func isClopRunning() -> Bool {
+@@ -751,7 +750,7 @@ func isClopRunning() -> Bool {
+ 
+ import os
+ 
+-let LOG_SUBSYSTEM = Bundle.main.bundleIdentifier ?? "com.lowtechguys.Clop"
++let LOG_SUBSYSTEM = Bundle.main.bundleIdentifier ?? "local.cloppy.app"
+ 
+ private let log = Logger(subsystem: LOG_SUBSYSTEM, category: "Shared")
+ 
+@@ -1110,11 +1109,11 @@ let ARCH: String = {
+     Darwin.sysctlbyname("hw.cputype", &ret, &size, nil, 0)
+     return ret == NSBundleExecutableArchitectureARM64 ? "arm64" : "x86"
+ }()
+-let APP_SCRIPTS_DIR = FileManager.default.urls(for: .applicationScriptsDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: "\(NSHomeDirectory())/Library/Application Scripts/com.lowtechguys.Clop")
++let APP_SCRIPTS_DIR = FileManager.default.urls(for: .applicationScriptsDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: "\(NSHomeDirectory())/Library/Application Scripts/local.cloppy.app")
+ 
+-let GLOBAL_BIN_DIR_PARENT = APP_SCRIPTS_DIR // ~/Library/Application Scripts/com.lowtechguys.Clop
+-let GLOBAL_BIN_DIR = GLOBAL_BIN_DIR_PARENT.appendingPathComponent("bin") // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/
+-let BIN_DIR = GLOBAL_BIN_DIR.appendingPathComponent(ARCH) // ~/Library/Application Scripts/com.lowtechguys.Clop/bin/arm64
++let GLOBAL_BIN_DIR_PARENT = APP_SCRIPTS_DIR // ~/Library/Application Scripts/local.cloppy.app
++let GLOBAL_BIN_DIR = GLOBAL_BIN_DIR_PARENT.appendingPathComponent("bin") // ~/Library/Application Scripts/local.cloppy.app/bin/
++let BIN_DIR = GLOBAL_BIN_DIR.appendingPathComponent(ARCH) // ~/Library/Application Scripts/local.cloppy.app/bin/arm64
+ var EXIFTOOL = BIN_DIR.appendingPathComponent("exiftool").filePath!
+ var HEIF_ENC = BIN_DIR.appendingPathComponent("heif-enc").filePath!
+ var CWEBP = BIN_DIR.appendingPathComponent("cwebp").filePath!

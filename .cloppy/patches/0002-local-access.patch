@@ -1,0 +1,733 @@
+diff --git a/Clop/ClopApp.swift b/Clop/ClopApp.swift
+index 16af247..646900a 100644
+--- a/Clop/ClopApp.swift
++++ b/Clop/ClopApp.swift
+@@ -142,7 +142,11 @@ extension NSPasteboard {
+     }
+ }
+ 
+-typealias AppDelegateParent = LowtechProAppDelegate
++#if CLOPPY
++    typealias AppDelegateParent = LowtechAppDelegate
++#else
++    typealias AppDelegateParent = LowtechProAppDelegate
++#endif
+ 
+ enum OptimisationSource: Codable, Equatable, Hashable {
+     case clipboard
+@@ -353,22 +357,26 @@ class AppDelegate: AppDelegateParent {
+ 
+     var fileCleaner: Timer?
+ 
+-    @MainActor
+-    override func willShowPaddle(_ uiType: PADUIType, product _: PADProduct) -> PADDisplayConfiguration? {
+-        // Present the licence / product-access dialogs as a sheet on the Settings window when it is
+-        // open: as standalone windows they were sometimes not clickable. Checkout and alerts keep
+-        // their own window.
+-        if uiType == .product || uiType == .license, let settingsWindow = NSApp.windows.first(where: { $0.isSettingsWindow }) {
+-            settingsViewManager.tab = .about
+-            focus()
+-            settingsWindow.makeKeyAndOrderFront(nil)
+-            return PADDisplayConfiguration(.sheet, hideNavigationButtons: false, parentWindow: settingsWindow)
++    #if !CLOPPY
++        @MainActor
++        override func willShowPaddle(_ uiType: PADUIType, product _: PADProduct) -> PADDisplayConfiguration? {
++            // Present the licence / product-access dialogs as a sheet on the Settings window when it is
++            // open: as standalone windows they were sometimes not clickable. Checkout and alerts keep
++            // their own window.
++            if uiType == .product || uiType == .license, let settingsWindow = NSApp.windows.first(where: { $0.isSettingsWindow }) {
++                settingsViewManager.tab = .about
++                focus()
++                settingsWindow.makeKeyAndOrderFront(nil)
++                return PADDisplayConfiguration(.sheet, hideNavigationButtons: false, parentWindow: settingsWindow)
++            }
++            return PADDisplayConfiguration(.window, hideNavigationButtons: false, parentWindow: nil)
+         }
+-        return PADDisplayConfiguration(.window, hideNavigationButtons: false, parentWindow: nil)
+-    }
+ 
++    #endif
+     override func applicationDidFinishLaunching(_ notification: Notification) {
+-        sentryCrashExceptionApplicationType = SentryCrashExceptionApplication.self
++        #if !CLOPPY
++            sentryCrashExceptionApplicationType = SentryCrashExceptionApplication.self
++        #endif
+         if !SWIFTUI_PREVIEW {
+             handleCLIInstall()
+             Optimisable.warmUpIconCache()
+@@ -385,7 +393,7 @@ class AppDelegate: AppDelegateParent {
+                 .forEach {
+                     $0.forceTerminate()
+                 }
+-            let _ = shell("/usr/bin/pkill", args: ["-fl", "Clop/bin/(arm64|x86)/.+"], wait: false)
++            let _ = shell("/usr/bin/pkill", args: ["-fl", "local.cloppy.app/bin/(arm64|x86)/.+"], wait: false)
+             signal(SIGTERM) { _ in
+                 for opt in OM.optimisers + OM.removedOptimisers {
+                     opt.stop(animateRemoval: false)
+@@ -406,35 +414,43 @@ class AppDelegate: AppDelegateParent {
+             createFileCleaner()
+         }
+ 
+-        paddleVendorID = "122873"
+-        paddleAPIKey = "e1e517a68c1ed1bea2ac968a593ac147"
+-        paddleProductID = "841006"
+-        trialDays = 14
+-        trialText = "This is a trial for the Pro features. After the trial, the app will automatically revert to the free version."
+-        price = 15
+-        productName = "Clop Pro"
+-        vendorName = "THE LOW TECH GUYS SRL"
+-        hasFreeFeatures = true
++        #if !CLOPPY
++            paddleVendorID = "122873"
++            paddleAPIKey = "e1e517a68c1ed1bea2ac968a593ac147"
++            paddleProductID = "841006"
++            trialDays = 14
++            trialText = "This is a trial for the Pro features. After the trial, the app will automatically revert to the free version."
++            price = 15
++            productName = "Clop Pro"
++            vendorName = "THE LOW TECH GUYS SRL"
++            hasFreeFeatures = true
+ 
++        #endif
+         if !SWIFTUI_PREVIEW {
+-            LowtechSentry.sentryDSN = "https://7dad9331a2e1753c3c0c6bc93fb0d523@o84592.ingest.sentry.io/4505673793077248"
+-            LowtechSentry.configureSentry(restartOnHang: false, getUser: LowtechSentry.getSentryUser)
+-            installUncaughtExceptionLogger()
+-            configureAppHangDetection { _, _ in
+-                activeCLIRequests.load(ordering: .relaxed) > 0 ? .suppressRestart : .useDefault
+-            }
++            #if !CLOPPY
++                LowtechSentry.sentryDSN = "https://7dad9331a2e1753c3c0c6bc93fb0d523@o84592.ingest.sentry.io/4505673793077248"
++                LowtechSentry.configureSentry(restartOnHang: false, getUser: LowtechSentry.getSentryUser)
++                installUncaughtExceptionLogger()
++                configureAppHangDetection { _, _ in
++                    activeCLIRequests.load(ordering: .relaxed) > 0 ? .suppressRestart : .useDefault
++                }
+ 
++            #endif
+             KM.primaryKeyModifiers = Defaults[.keyComboModifiers]
+             KM.primaryKeys = Defaults[.enabledKeys] + Defaults[.quickResizeKeys]
+             KM.onPrimaryHotkey = { key in
+                 self.handleHotkey(key)
+-                let _ = invalidReq2(PRODUCTS, nil)
++                #if !CLOPPY
++                    let _ = invalidReq2(PRODUCTS, nil)
++                #endif
+             }
+ 
+             KM.secondaryKeyModifiers = [.lcmd]
+             KM.onSecondaryHotkey = { key in
+                 self.handleCommandHotkey(key)
+-                let _ = invalidReq3(PRODUCTS, nil)
++                #if !CLOPPY
++                    let _ = invalidReq3(PRODUCTS, nil)
++                #endif
+             }
+ 
+             KM.onBareHotkey = { key in
+@@ -442,25 +458,27 @@ class AppDelegate: AppDelegateParent {
+             }
+         }
+         super.applicationDidFinishLaunching(_: notification)
+-        UM.updater = updateController.updater
+-        PM.pro = pro
+-        if !SWIFTUI_PREVIEW {
+-            clopDebugLog("applicationDidFinishLaunching: about to checkProLicense (productActivated=\(pro.productActivated), onTrial=\(pro.onTrial))")
+-            pro.checkProLicense()
+-        }
+-
+-        let p = pro
+-        p.$productActivated.sink { newValue in
+-            clopDebugLog("proactive observer: productActivated changed to \(newValue) (onTrial=\(p.onTrial), proactive will be \(newValue || p.onTrial))")
+-            // The licence resolves after launch, so the card written at startup says pro:false even for
+-            // a licensed user until this lands. Rewrite it rather than let an agent read a stale no.
+-            mainActor { MCPInstaller.writeServerCard() }
+-        }.store(in: &proDebugCancellables)
+-        p.$onTrial.sink { newValue in
+-            clopDebugLog("proactive observer: onTrial changed to \(newValue) (productActivated=\(p.productActivated), proactive will be \(p.productActivated || newValue))")
+-            mainActor { MCPInstaller.writeServerCard() }
+-        }.store(in: &proDebugCancellables)
++        #if !CLOPPY
++            UM.updater = updateController.updater
++            PM.pro = pro
++            if !SWIFTUI_PREVIEW {
++                clopDebugLog("applicationDidFinishLaunching: about to checkProLicense (productActivated=\(pro.productActivated), onTrial=\(pro.onTrial))")
++                pro.checkProLicense()
++            }
++
++            let p = pro
++            p.$productActivated.sink { newValue in
++                clopDebugLog("proactive observer: productActivated changed to \(newValue) (onTrial=\(p.onTrial), proactive will be \(newValue || p.onTrial))")
++                // The licence resolves after launch, so the card written at startup says pro:false even for
++                // a licensed user until this lands. Rewrite it rather than let an agent read a stale no.
++                mainActor { MCPInstaller.writeServerCard() }
++            }.store(in: &proDebugCancellables)
++            p.$onTrial.sink { newValue in
++                clopDebugLog("proactive observer: onTrial changed to \(newValue) (productActivated=\(p.productActivated), proactive will be \(p.productActivated || newValue))")
++                mainActor { MCPInstaller.writeServerCard() }
++            }.store(in: &proDebugCancellables)
+ 
++        #endif
+         migrateShortcutsToPipelines()
+         migrateToUnifiedCompression()
+         seedBuiltinPipelines()
+@@ -566,7 +584,11 @@ class AppDelegate: AppDelegateParent {
+             .store(in: &observers)
+         initMachPortListener()
+ 
+-        _ = invalidReq(PRODUCTS, nil)
++        #if !CLOPPY
++
++            _ = invalidReq(PRODUCTS, nil)
++
++        #endif
+         setupServiceProvider()
+         // Written every launch whether or not the switch is on, so an agent can find Clop and read how
+         // to ask for permission rather than guessing.
+@@ -709,10 +731,12 @@ class AppDelegate: AppDelegateParent {
+         draggingSet.send(true)
+     }
+ 
+-    func allowedChannels(for _: SPUUpdater) -> Set<String> {
+-        lowtechAllowedChannels()
+-    }
++    #if !CLOPPY
++        func allowedChannels(for _: SPUUpdater) -> Set<String> {
++            lowtechAllowedChannels()
++        }
+ 
++    #endif
+     func application(_ application: NSApplication, open urls: [URL]) {
+         Task {
+             await handleURLs(application, urls)
+@@ -837,6 +861,7 @@ class AppDelegate: AppDelegateParent {
+ 
+     /// Plain Space pressed while hovering a floating result: toggle QuickLook.
+     /// Returns false to forward the keypress to the focused app instead.
++    @MainActor
+     func handleBareHotkey(_ key: SauceKey) -> Bool {
+         guard key == .space, finishedOnboarding, !SM.selecting,
+               let opt = OM.hovered, !opt.editingFilename
+@@ -946,17 +971,19 @@ class AppDelegate: AppDelegateParent {
+     }
+ 
+     func syncSettings() {
+-        if Defaults[.syncSettingsCloud] {
+-            Zephyr.observe(keys: SETTINGS_TO_SYNC)
+-        }
+-        pub(.syncSettingsCloud)
+-            .sink { change in
+-                if change.newValue {
+-                    Zephyr.observe(keys: SETTINGS_TO_SYNC)
+-                } else {
+-                    Zephyr.stopObserving(keys: SETTINGS_TO_SYNC)
+-                }
+-            }.store(in: &observers)
++        #if !CLOPPY
++            if Defaults[.syncSettingsCloud] {
++                Zephyr.observe(keys: SETTINGS_TO_SYNC)
++            }
++            pub(.syncSettingsCloud)
++                .sink { change in
++                    if change.newValue {
++                        Zephyr.observe(keys: SETTINGS_TO_SYNC)
++                    } else {
++                        Zephyr.stopObserving(keys: SETTINGS_TO_SYNC)
++                    }
++                }.store(in: &observers)
++        #endif
+     }
+     func initMachPortListener() {
+         // A concurrent queue, where one listener thread used to answer every request in turn: a
+@@ -1010,7 +1037,9 @@ class AppDelegate: AppDelegateParent {
+     func applicationWillFinishLaunching(_ notification: Notification) {
+         if !SWIFTUI_PREVIEW {
+             migrateSettings()
+-            resetDefaultPlayer()
++            #if !CLOPPY
++                resetDefaultPlayer()
++            #endif
+         }
+     }
+ 
+@@ -1409,7 +1438,11 @@ class AppDelegate: AppDelegateParent {
+             initClipboardOptimiser()
+         }
+ 
+-        _ = invalidReq(PRODUCTS, nil)
++        #if !CLOPPY
++
++            _ = invalidReq(PRODUCTS, nil)
++
++        #endif
+     }
+ 
+     @MainActor func initClipboardOptimiser() {
+@@ -1650,7 +1683,7 @@ let ONBOARDING_WINDOW_IDENTIFIER = NSUserInterfaceItemIdentifier("clop.onboardin
+ let CROP_WINDOW_IDENTIFIER = NSUserInterfaceItemIdentifier("clop.crop.window")
+ 
+ extension NSWindow {
+-    /// The Settings scene is declared as `Window("Settings", id: "settings")`; SwiftUI maps that
++    /// The Settings scene is declared as `Window("Cloppy Settings", id: "settings")`; SwiftUI maps that
+     /// scene `id` into the AppKit window identifier. Match on that instead of the title: the
+     /// identifier is stable and not localized. `contains` rather than `==` so we tolerate any
+     /// prefix/suffix SwiftUI may wrap around the scene id.
+@@ -1706,22 +1739,24 @@ var pbChangeCount = NSPasteboard.general.changeCount
+ let THUMB_SIZE = CGSize(width: 300, height: 220)
+ 
+ func migrateSettings() {
+-    guard let id = Bundle.main.bundleIdentifier else {
+-        return
+-    }
++    #if !CLOPPY
++        guard let id = Bundle.main.bundleIdentifier else {
++            return
++        }
+ 
+-    let currentPrefs = URL.libraryDirectory
+-        .appendingPathComponent("Preferences")
+-        .appendingPathComponent(id == "com.lowtechguys.Clop-setapp" ? "com.lowtechguys.Clop-setapp.plist" : "com.lowtechguys.Clop.plist")
+-    let oldPrefs = URL.libraryDirectory
+-        .appendingPathComponent("Preferences")
+-        .appendingPathComponent(id == "com.lowtechguys.Clop-setapp" ? "com.lowtechguys.Clop.plist" : "com.lowtechguys.Clop-setapp.plist")
++        let currentPrefs = URL.libraryDirectory
++            .appendingPathComponent("Preferences")
++            .appendingPathComponent(id == "com.lowtechguys.Clop-setapp" ? "com.lowtechguys.Clop-setapp.plist" : "com.lowtechguys.Clop.plist")
++        let oldPrefs = URL.libraryDirectory
++            .appendingPathComponent("Preferences")
++            .appendingPathComponent(id == "com.lowtechguys.Clop-setapp" ? "com.lowtechguys.Clop.plist" : "com.lowtechguys.Clop-setapp.plist")
+ 
+-    if !FileManager.default.fileExists(atPath: currentPrefs.path), FileManager.default.fileExists(atPath: oldPrefs.path) {
+-        try? FileManager.default.copyItem(at: oldPrefs, to: currentPrefs)
+-        NSUbiquitousKeyValueStore.default.synchronize()
+-        restart()
+-    }
++        if !FileManager.default.fileExists(atPath: currentPrefs.path), FileManager.default.fileExists(atPath: oldPrefs.path) {
++            try? FileManager.default.copyItem(at: oldPrefs, to: currentPrefs)
++            NSUbiquitousKeyValueStore.default.synchronize()
++            restart()
++        }
++    #endif
+ }
+ 
+ /// Seed the unified per-format `CompressionQuality` keys from the legacy aggressive/adaptive/encoder/bitrate
+@@ -1813,7 +1848,7 @@ struct ClopApp: App {
+     @ObservedObject var pm = PM
+ 
+     var settingsWindow: some Scene {
+-        let w = Window("Settings", id: "settings") {
++        let w = Window("Cloppy Settings", id: "settings") {
+             SettingsView()
+                 .frame(minWidth: WINDOW_MIN_SIZE.width, maxWidth: .infinity, minHeight: WINDOW_MIN_SIZE.height, maxHeight: .infinity)
+         }
+@@ -1842,7 +1877,7 @@ struct ClopApp: App {
+                     : (useGeometricMenubarIcon ? .menubarIconGeometric : useClassicMenubarIcon ? .menubarIconClassic : .menubarIcon)
+             ))
+             // Otherwise the menu bar item is announced by its asset name, "MenubarIcon".
+-            .accessibilityLabel("Clop")
++            .accessibilityLabel("Cloppy")
+         })
+         .menuBarExtraStyle(.menu)
+         .onChange(of: showMenubarIcon) { show in
+@@ -1975,23 +2010,25 @@ class ContextualMenuServiceProvider: NSObject {
+     }
+ }
+ 
+-func defaultAppForUTI(_ uti: String) -> String? {
+-    guard let value = LSCopyDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor]) else {
+-        return nil
++#if !CLOPPY
++    func defaultAppForUTI(_ uti: String) -> String? {
++        guard let value = LSCopyDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor]) else {
++            return nil
++        }
++        return value.takeRetainedValue() as String
+     }
+-    return value.takeRetainedValue() as String
+-}
+-func setDefaultAppForUTI(_ uti: String, _ bundleID: String) -> OSStatus {
+-    LSSetDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor], bundleID as CFString)
+-}
+-func resetDefaultPlayer() {
+-    if let mp4Player = defaultAppForUTI("public.mpeg-4"), mp4Player.starts(with: "com.lowtechguys.Clop") {
+-        _ = setDefaultAppForUTI("public.mpeg-4", "com.apple.QuickTimePlayerX")
++    func setDefaultAppForUTI(_ uti: String, _ bundleID: String) -> OSStatus {
++        LSSetDefaultRoleHandlerForContentType(uti as CFString, [LSRolesMask.viewer, LSRolesMask.editor], bundleID as CFString)
+     }
+-    if let movPlayer = defaultAppForUTI("com.apple.quicktime-movie"), movPlayer.starts(with: "com.lowtechguys.Clop") {
+-        _ = setDefaultAppForUTI("com.apple.quicktime-movie", "com.apple.QuickTimePlayerX")
++    func resetDefaultPlayer() {
++        if let mp4Player = defaultAppForUTI("public.mpeg-4"), mp4Player.starts(with: "com.lowtechguys.Clop") {
++            _ = setDefaultAppForUTI("public.mpeg-4", "com.apple.QuickTimePlayerX")
++        }
++        if let movPlayer = defaultAppForUTI("com.apple.quicktime-movie"), movPlayer.starts(with: "com.lowtechguys.Clop") {
++            _ = setDefaultAppForUTI("com.apple.quicktime-movie", "com.apple.QuickTimePlayerX")
++        }
+     }
+-}
++#endif
+ 
+ private let optimisationServiceQueue = DispatchQueue(label: "com.lowtechguys.Clop.optimisationService", qos: .userInitiated, attributes: .concurrent)
+ private let optimisationRequests = CLIRequestGate(queue: optimisationServiceQueue, limit: 16)
+diff --git a/Clop/CloppyAccess.swift b/Clop/CloppyAccess.swift
+new file mode 100644
+index 0000000..baea3f3
+--- /dev/null
++++ b/Clop/CloppyAccess.swift
+@@ -0,0 +1,6 @@
++import Foundation
++
++#if CLOPPY
++    /// Local distribution has no commercial activation or trial state.
++    let proactive = true
++#endif
+diff --git a/Clop/ContentView.swift b/Clop/ContentView.swift
+index 25e6215..6c3ddf1 100644
+--- a/Clop/ContentView.swift
++++ b/Clop/ContentView.swift
+@@ -196,7 +196,7 @@ struct MenuView: View {
+             proErrors
+         }
+ 
+-        Menu("About...") {
++        Menu("About Cloppy") {
+             Button("Contact the developer") {
+                 NSWorkspace.shared.open(contactURL())
+             }
+@@ -206,8 +206,8 @@ struct MenuView: View {
+             Button("Privacy policy") {
+                 NSWorkspace.shared.open("https://lowtechguys.com/clop/privacy".url!)
+             }
+-            Text("License: \(proactive ? "Pro" : "Free")")
+-            #if DEBUG
++            Text("Cloppy · full local optimisation")
++            #if DEBUG && !CLOPPY
+                 Button("Reset Trial") {
+                     product?.resetTrial()
+                 }
+@@ -218,19 +218,21 @@ struct MenuView: View {
+             Text("Version: v\(Bundle.main.version)")
+         }
+ 
+-        Button("Manage license") {
+-            manageLicenceInSettings()
+-        }
++        #if !CLOPPY
++            Button("Manage license") {
++                manageLicenceInSettings()
++            }
+ 
+-        Button(um.newVersion != nil ? "v\(um.newVersion!) update available" : "Check for updates") {
+-            checkForUpdates()
+-            focus()
+-        }
++            Button(um.newVersion != nil ? "v\(um.newVersion!) update available" : "Check for updates") {
++                checkForUpdates()
++                focus()
++            }
+ 
+-        Toggle("Show Clop UI in screenshots", isOn: $allowClopToAppearInScreenshots)
++        #endif
++        Toggle("Show Cloppy UI in screenshots", isOn: $allowClopToAppearInScreenshots)
+             .searchAnchor("general.main.allowClopToAppearInScreenshots")
+         Divider()
+-        Button("Quit") {
++        Button("Quit Cloppy") {
+             NSApp.terminate(nil)
+         }.keyboardShortcut("q")
+     }
+diff --git a/Clop/Migrations.swift b/Clop/Migrations.swift
+index 006c723..e1e9789 100644
+--- a/Clop/Migrations.swift
++++ b/Clop/Migrations.swift
+@@ -4,7 +4,9 @@ import Lowtech
+ 
+ enum Migrations {
+     static func run() {
+-        clopIgnoreMigrate()
++        #if !CLOPPY
++            clopIgnoreMigrate()
++        #endif
+         portablePathsMigrate()
+     }
+ 
+diff --git a/Clop/OptimisationUtils.swift b/Clop/OptimisationUtils.swift
+index b0a0913..ed7a12a 100644
+--- a/Clop/OptimisationUtils.swift
++++ b/Clop/OptimisationUtils.swift
+@@ -3026,16 +3026,18 @@ import LowtechPro
+ @discardableResult @inline(__always)
+ @MainActor func proGuard<T>(count: inout Int, limit: Int = 5, url: URL? = nil, _ action: @escaping () async throws -> T) async throws -> T {
+     guard !BM.decompressingBinaries else { throw ClopError.decompressingBinariesError }
+-    guard proactive || count < limit, validReq() else {
+-        clopDebugLog(
+-            "proGuard BLOCKED: proactive=\(proactive) count=\(count) limit=\(limit) url=\(url?.absoluteString ?? "nil") PRO=\(PRO != nil ? "exists" : "nil") productActivated=\(PRO?.productActivated ?? false) onTrial=\(PRO?.onTrial ?? false)"
+-        )
+-        if let url {
+-            OM.skippedBecauseNotPro = OM.skippedBecauseNotPro.with(url)
++    #if !CLOPPY
++        guard proactive || count < limit, validReq() else {
++            clopDebugLog(
++                "proGuard BLOCKED: proactive=\(proactive) count=\(count) limit=\(limit) url=\(url?.absoluteString ?? "nil") PRO=\(PRO != nil ? "exists" : "nil") productActivated=\(PRO?.productActivated ?? false) onTrial=\(PRO?.onTrial ?? false)"
++            )
++            if let url {
++                OM.skippedBecauseNotPro = OM.skippedBecauseNotPro.with(url)
++            }
++            proLimitsReached(url: url)
++            throw ClopError.proError("Pro limits reached")
+         }
+-        proLimitsReached(url: url)
+-        throw ClopError.proError("Pro limits reached")
+-    }
++    #endif
+     let result = try await action()
+     count += 1
+     return result
+diff --git a/Clop/RightClickMenu.swift b/Clop/RightClickMenu.swift
+index 9c4d0d1..210f1a2 100644
+--- a/Clop/RightClickMenu.swift
++++ b/Clop/RightClickMenu.swift
+@@ -207,18 +207,20 @@ struct RightClickMenuView: View {
+             }
+ 
+             Section("Share") {
+-                if let session = wdm.session(forOptimiser: optimiser) {
+-                    Button("Copy send link") {
+-                        session.copyLink()
+-                        optimiser.overlayMessage = "Copied link"
+-                    }
+-                    .keyboardShortcut("w")
+-                } else {
+-                    Button("Send file securely") {
+-                        warpDropSend(optimiser: optimiser)
++                #if !CLOPPY
++                    if let session = wdm.session(forOptimiser: optimiser) {
++                        Button("Copy send link") {
++                            session.copyLink()
++                            optimiser.overlayMessage = "Copied link"
++                        }
++                        .keyboardShortcut("w")
++                    } else {
++                        Button("Send file securely") {
++                            warpDropSend(optimiser: optimiser)
++                        }
++                        .keyboardShortcut("w")
+                     }
+-                    .keyboardShortcut("w")
+-                }
++                #endif
+                 if let url = optimiser.url ?? optimiser.originalURL, let airdrop = NSSharingService(named: .sendViaAirDrop) {
+                     Button("Send with AirDrop") {
+                         guard optimiser.existingFileOrNotify() != nil else { return }
+@@ -504,21 +506,23 @@ struct BatchRightClickMenuView: View {
+ 
+         Divider()
+ 
+-        if sm.optimisers.allSatisfy({ wdm.session(forOptimiser: $0) != nil }) {
+-            Button("Copy all send links") {
+-                let links = sm.optimisers.compactMap { wdm.session(forOptimiser: $0)?.shareURL }
+-                withGeneralPasteboard { pb in
+-                    pb.clearContents()
+-                    pb.setString(links.joined(separator: "\n"), forType: .string)
++        #if !CLOPPY
++            if sm.optimisers.allSatisfy({ wdm.session(forOptimiser: $0) != nil }) {
++                Button("Copy all send links") {
++                    let links = sm.optimisers.compactMap { wdm.session(forOptimiser: $0)?.shareURL }
++                    withGeneralPasteboard { pb in
++                        pb.clearContents()
++                        pb.setString(links.joined(separator: "\n"), forType: .string)
++                    }
++                    sm.selection = []
++                }
++            } else {
++                Button("Send files securely") {
++                    warpDropSend(optimisers: sm.optimisers)
++                    sm.selection = []
+                 }
+-                sm.selection = []
+-            }
+-        } else {
+-            Button("Send files securely") {
+-                warpDropSend(optimisers: sm.optimisers)
+-                sm.selection = []
+             }
+-        }
++        #endif
+         Button("Upload with Dropshare") {
+             DROPSHARE.open(optimisers: sm.optimisers)
+             sm.selection = []
+diff --git a/Clop/SettingsView.swift b/Clop/SettingsView.swift
+index 22d305b..c480804 100644
+--- a/Clop/SettingsView.swift
++++ b/Clop/SettingsView.swift
+@@ -2175,42 +2175,66 @@ struct MadeBy: View {
+     }
+ }
+ 
+-struct LicenseUpdatesSettingsView: View {
+-    @ObservedObject var um: UpdateManager = UM
+-    @ObservedObject var pm: ProManager = PM
++#if CLOPPY
++    struct LicenseUpdatesSettingsView: View {
++        var body: some View {
++            Text("Cloppy includes full local optimisation. Updates are built manually from the fork.")
++                .padding()
++        }
++    }
+ 
+-    var body: some View {
+-        if let pro = pm.pro, let updater = um.updater {
+-            Form {
+-                LicenseAndUpdatesView(pro: pro, updater: updater, appName: "Clop", changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html"))
++    struct AboutSettingsView: View {
++        var body: some View {
++            VStack(spacing: 12) {
++                Text("Cloppy").font(.title)
++                Text("Version \(Bundle.main.version)")
++                Text("Local fork of Clop by The low-tech guys. GPLv3.")
++                Text("Full local optimisation. No commercial activation or automatic updates.")
++                Link("Original source", destination: URL(string: "https://github.com/FuzzyIdeas/Clop")!)
+             }
+-            .formStyle(.grouped)
+-            .scrollContentBackground(.hidden)
+-        } else {
+-            ProgressView()
+-                .fill()
++            .padding()
++            .fill()
+         }
+     }
+-}
++#else
++    struct LicenseUpdatesSettingsView: View {
++        @ObservedObject var um: UpdateManager = UM
++        @ObservedObject var pm: ProManager = PM
+ 
+-struct AboutSettingsView: View {
+-    @ObservedObject var um: UpdateManager = UM
+-    @ObservedObject var pm: ProManager = PM
++        var body: some View {
++            if let pro = pm.pro, let updater = um.updater {
++                Form {
++                    LicenseAndUpdatesView(pro: pro, updater: updater, appName: "Clop", changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html"))
++                }
++                .formStyle(.grouped)
++                .scrollContentBackground(.hidden)
++            } else {
++                ProgressView()
++                    .fill()
++            }
++        }
++    }
+ 
+-    var body: some View {
+-        AboutView(
+-            appName: "Clop",
+-            pro: pm.pro,
+-            updater: um.updater,
+-            websiteURL: URL(string: "https://lowtechguys.com/clop"),
+-            contactURL: URL(string: "https://lowtechguys.com/contact?app=Clop"),
+-            discordURL: URL(string: "https://discord.gg/YeTuy6adXk"),
+-            sourceURL: URL(string: "https://github.com/FuzzyIdeas/Clop"),
+-            changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html")
+-        )
+-        .fill()
++    struct AboutSettingsView: View {
++        @ObservedObject var um: UpdateManager = UM
++        @ObservedObject var pm: ProManager = PM
++
++        var body: some View {
++            AboutView(
++                appName: "Clop",
++                pro: pm.pro,
++                updater: um.updater,
++                websiteURL: URL(string: "https://lowtechguys.com/clop"),
++                contactURL: URL(string: "https://lowtechguys.com/contact?app=Clop"),
++                discordURL: URL(string: "https://discord.gg/YeTuy6adXk"),
++                sourceURL: URL(string: "https://github.com/FuzzyIdeas/Clop"),
++                changelogURL: URL(string: "https://files.lowtechguys.com/clop/changelog.html")
++            )
++            .fill()
++        }
+     }
+-}
++
++#endif
+ 
+ import SymbolPicker
+ 
+@@ -2910,23 +2934,25 @@ struct GeneralSettingsView: View {
+             }
+             LaunchAtLogin.Toggle()
+                 .accessibilityLabel("Launch at login")
+-            Toggle("Sync settings with other Macs via iCloud", isOn: $syncSettingsCloud)
+-                .searchAnchor("general.main.syncSettingsCloud", namesControl: true)
+-            HStack {
+-                Text("Secure send links expire after")
+-                Spacer()
+-                Picker("Secure send links expire after", selection: $defaultLinkExpiration) {
+-                    ForEach(LINK_EXPIRATION_PRESETS, id: \.self) { preset in
+-                        Text(expirationDurationLabel(preset)).tag(preset)
++            #if !CLOPPY
++                Toggle("Sync settings with other Macs via iCloud", isOn: $syncSettingsCloud)
++                    .searchAnchor("general.main.syncSettingsCloud", namesControl: true)
++                HStack {
++                    Text("Secure send links expire after")
++                    Spacer()
++                    Picker("Secure send links expire after", selection: $defaultLinkExpiration) {
++                        ForEach(LINK_EXPIRATION_PRESETS, id: \.self) { preset in
++                            Text(expirationDurationLabel(preset)).tag(preset)
++                        }
++                        Divider()
++                        Text("Never").tag(LINK_EXPIRATION_NEVER)
+                     }
+-                    Divider()
+-                    Text("Never").tag(LINK_EXPIRATION_NEVER)
++                    .labelsHidden()
++                    .frame(width: 150)
++                    .searchAnchor("general.main.defaultLinkExpiration")
+                 }
+-                .labelsHidden()
+-                .frame(width: 150)
+-                .searchAnchor("general.main.defaultLinkExpiration")
+-            }
+ 
++            #endif
+             Section(header: SectionHeader(title: "Edit with external app", subtitle: "Hand an optimised file to an editor of your choice with ⌘E or the right-click menu")) {
+                 EditorAppRow(label: "Images", systemImage: "photo", key: .editorAppImage)
+                     .searchAnchor("general.editwithexternalapp.editorAppImage")
+@@ -2999,12 +3025,14 @@ struct GeneralSettingsView: View {
+                 .searchAnchor("general.optimisation.optimisedFileProtectionMs", namesControl: true)
+             }
+ 
+-            Section(header: SectionHeader(title: "Privacy")) {
+-                SentryToggleRow(
+-                    title: "Send error reports",
+-                    subtitle: "Help improve Clop by sending anonymous crash and error reports to the developer"
+-                )
+-            }
++            #if !CLOPPY
++                Section(header: SectionHeader(title: "Privacy")) {
++                    SentryToggleRow(
++                        title: "Send error reports",
++                        subtitle: "Help improve Clop by sending anonymous crash and error reports to the developer"
++                    )
++                }
++            #endif
+         }
+         .scrollContentBackground(.hidden)
+         .padding(.horizontal, 50)
+diff --git a/Clop/ShortcutsCompat.swift b/Clop/ShortcutsCompat.swift
+index 650bb95..be252af 100644
+--- a/Clop/ShortcutsCompat.swift
++++ b/Clop/ShortcutsCompat.swift
+@@ -14,6 +14,8 @@ func runShortcutProcess(_ shortcut: Shortcut, _ file: String, outFile: String) -
+ }
+ 
+ func startShortcutWatcher() {
+-    guard hasShortcutsDB() else { return }
++    #if !CLOPPY
++        guard hasShortcutsDB() else { return }
++    #endif
+     SHM.startWatching()
+ }

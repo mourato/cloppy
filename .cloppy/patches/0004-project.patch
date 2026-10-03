@@ -1,0 +1,169 @@
+diff --git a/Clop.xcodeproj/project.pbxproj b/Clop.xcodeproj/project.pbxproj
+index 2e5e0c1..934813e 100644
+--- a/Clop.xcodeproj/project.pbxproj
++++ b/Clop.xcodeproj/project.pbxproj
+@@ -22,7 +22,6 @@
+ 		C70A48EE2B1A06AD00C266DE /* Colorize.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70A48ED2B1A06AD00C266DE /* Colorize.swift */; };
+ 		C70B5F312AC029DA00345739 /* Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70B5F302AC029DA00345739 /* Shared.swift */; };
+ 		C73802052BD1B81A001BEE6C /* lrzip in Resources */ = {isa = PBXBuildFile; fileRef = C73802042BD1B81A001BEE6C /* lrzip */; };
+-		C7605FC32F78194D0087B195 /* WarpDrop in Frameworks */ = {isa = PBXBuildFile; productRef = C7605FC22F78194D0087B195 /* WarpDrop */; };
+ 		C78211022A59E371008DB106 /* Lowtech in Frameworks */ = {isa = PBXBuildFile; productRef = C78211012A59E371008DB106 /* Lowtech */; };
+ 		C78211042A59E371008DB106 /* LowtechIndie in Frameworks */ = {isa = PBXBuildFile; productRef = C78211032A59E371008DB106 /* LowtechIndie */; };
+ 		C78211062A59E371008DB106 /* LowtechPro in Frameworks */ = {isa = PBXBuildFile; productRef = C78211052A59E371008DB106 /* LowtechPro */; };
+@@ -450,6 +449,7 @@
+ 				Clop-Bridging-Header.h,
+ 				Clop.entitlements,
+ 				ClopApp.swift,
++				CloppyAccess.swift,
+ 				ClopFileType.swift,
+ 				ClopShortcuts.swift,
+ 				ClopUtils.swift,
+@@ -823,7 +823,6 @@
+ 				bin/x86/pngquant,
+ 				bin/x86/toGainMapHDR,
+ 				bin/x86/vipsthumbnail,
+-				required.swift,
+ 			);
+ 			target = C7956A3E2AC208DD00C0EDF2 /* ClopCLI */;
+ 		};
+@@ -860,7 +859,6 @@
+ 				C78211042A59E371008DB106 /* LowtechIndie in Frameworks */,
+ 				C7D697172F837AD000FAFD3A /* LowtechProSentry in Frameworks */,
+ 				C7DF1A282AB8885600AF8EDC /* Ignore in Frameworks */,
+-				C7605FC32F78194D0087B195 /* WarpDrop in Frameworks */,
+ 				C78211062A59E371008DB106 /* LowtechPro in Frameworks */,
+ 				C7BE4CCF2D32EEA200B59E5C /* SymbolPicker in Frameworks */,
+ 				C7A1B0012FA3D00000JXLCDR /* JxlCoder in Frameworks */,
+@@ -979,7 +977,6 @@
+ 				C78211052A59E371008DB106 /* LowtechPro */,
+ 				C7DF1A272AB8885600AF8EDC /* Ignore */,
+ 				C7BE4CCE2D32EEA200B59E5C /* SymbolPicker */,
+-				C7605FC22F78194D0087B195 /* WarpDrop */,
+ 				C7D697162F837AD000FAFD3A /* LowtechProSentry */,
+ 				C7A1B0002FA3D00000JXLCDR /* JxlCoder */,
+ 			);
+@@ -1019,7 +1016,6 @@
+ 				C7DF1A262AB8885500AF8EDC /* XCRemoteSwiftPackageReference "swift-ignore" */,
+ 				C7956A482AC209F200C0EDF2 /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+ 				C73987702D32ECE200CCC939 /* XCRemoteSwiftPackageReference "SymbolPicker" */,
+-				C7605FC12F78194D0087B195 /* XCLocalSwiftPackageReference "../../../Github/alin23/warpdrop/swift" */,
+ 				C7A1B0022FA3D00000JXLCDR /* XCRemoteSwiftPackageReference "jxl-coder-swift" */,
+ 			);
+ 			productRefGroup = C7AB6622288301590041BEC8 /* Products */;
+@@ -1128,11 +1124,12 @@
+ 				INFOPLIST_FILE = ClopCLI/Info.plist;
+ 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+ 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+-				PRODUCT_BUNDLE_IDENTIFIER = com.lowtechguys.Clop.CLI;
++				PRODUCT_BUNDLE_IDENTIFIER = local.cloppy.app.CLI;
+ 				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CLOPPY";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SKIP_INSTALL = YES;
+-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited) CLOPPY";
+ 				SWIFT_VERSION = 5.0;
+ 				SYSTEM_FRAMEWORK_SEARCH_PATHS = (
+ 					"$(inherited)",
+@@ -1157,8 +1154,9 @@
+ 				INFOPLIST_FILE = ClopCLI/Info.plist;
+ 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+ 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+-				PRODUCT_BUNDLE_IDENTIFIER = com.lowtechguys.Clop.CLI;
++				PRODUCT_BUNDLE_IDENTIFIER = local.cloppy.app.CLI;
+ 				PRODUCT_NAME = "$(TARGET_NAME)";
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CLOPPY";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				SKIP_INSTALL = YES;
+ 				SWIFT_VERSION = 5.0;
+@@ -1314,7 +1312,7 @@
+ 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+ 				GENERATE_INFOPLIST_FILE = YES;
+ 				INFOPLIST_FILE = Clop/Info.plist;
+-				INFOPLIST_KEY_CFBundleDisplayName = Clop;
++				INFOPLIST_KEY_CFBundleDisplayName = Cloppy;
+ 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+ 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+ 				LD_RUNPATH_SEARCH_PATHS = (
+@@ -1329,8 +1327,9 @@
+ 				LLVM_LTO = YES_THIN;
+ 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+ 				MARKETING_VERSION = 3.4.5;
+-				PRODUCT_BUNDLE_IDENTIFIER = com.lowtechguys.Clop;
+-				PRODUCT_NAME = "$(TARGET_NAME)";
++				PRODUCT_BUNDLE_IDENTIFIER = local.cloppy.app;
++				PRODUCT_NAME = Cloppy;
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CLOPPY";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+ 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+@@ -1365,7 +1364,7 @@
+ 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = YES;
+ 				GENERATE_INFOPLIST_FILE = YES;
+ 				INFOPLIST_FILE = Clop/Info.plist;
+-				INFOPLIST_KEY_CFBundleDisplayName = Clop;
++				INFOPLIST_KEY_CFBundleDisplayName = Cloppy;
+ 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+ 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+ 				LD_RUNPATH_SEARCH_PATHS = (
+@@ -1381,8 +1380,9 @@
+ 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+ 				MARKETING_VERSION = 3.4.5;
+ 				OTHER_LDFLAGS = "";
+-				PRODUCT_BUNDLE_IDENTIFIER = com.lowtechguys.Clop;
+-				PRODUCT_NAME = "$(TARGET_NAME)";
++				PRODUCT_BUNDLE_IDENTIFIER = local.cloppy.app;
++				PRODUCT_NAME = Cloppy;
++				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CLOPPY";
+ 				PROVISIONING_PROFILE_SPECIFIER = "";
+ 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+ 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+@@ -1431,10 +1431,6 @@
+ /* End XCConfigurationList section */
+ 
+ /* Begin XCLocalSwiftPackageReference section */
+-		C7605FC12F78194D0087B195 /* XCLocalSwiftPackageReference "../../../Github/alin23/warpdrop/swift" */ = {
+-			isa = XCLocalSwiftPackageReference;
+-			relativePath = ../../../Github/alin23/warpdrop/swift;
+-		};
+ /* End XCLocalSwiftPackageReference section */
+ 
+ /* Begin XCRemoteSwiftPackageReference section */
+@@ -1481,10 +1477,6 @@
+ /* End XCRemoteSwiftPackageReference section */
+ 
+ /* Begin XCSwiftPackageProductDependency section */
+-		C7605FC22F78194D0087B195 /* WarpDrop */ = {
+-			isa = XCSwiftPackageProductDependency;
+-			productName = WarpDrop;
+-		};
+ 		C78211012A59E371008DB106 /* Lowtech */ = {
+ 			isa = XCSwiftPackageProductDependency;
+ 			package = C78211002A59E371008DB106 /* XCRemoteSwiftPackageReference "Lowtech" */;
+diff --git a/Clop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved b/Clop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+index 13a1789..1450a12 100644
+--- a/Clop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
++++ b/Clop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+@@ -1,5 +1,5 @@
+ {
+-  "originHash" : "53ab27e2aa36fe5d1228d593d0c9fa0ec2f87b33a13c137a1e35ff924ba88a00",
++  "originHash" : "922b221f203e473817d8db5f03cc1750d4ff7cf4e7d239074c57b5df28ab3f23",
+   "pins" : [
+     {
+       "identity" : "appreceiptvalidator",
+@@ -171,15 +171,6 @@
+         "revision" : "0e95abd03bb90c906b14c96669557830dbc81e07",
+         "version" : "2.1.0"
+       }
+-    },
+-    {
+-      "identity" : "webrtc",
+-      "kind" : "remoteSourceControl",
+-      "location" : "https://github.com/stasel/WebRTC.git",
+-      "state" : {
+-        "revision" : "1048f8396529c10e259f8240d0c2cd607a13defd",
+-        "version" : "130.0.0"
+-      }
+     }
+   ],
+   "version" : 3

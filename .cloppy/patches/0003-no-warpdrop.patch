@@ -1,0 +1,281 @@
+diff --git a/Clop/ActionButtons.swift b/Clop/ActionButtons.swift
+index d407344..0218165 100644
+--- a/Clop/ActionButtons.swift
++++ b/Clop/ActionButtons.swift
+@@ -44,13 +44,13 @@ enum FloatingAction: RawRepresentable, CaseIterable, Codable, Hashable, Defaults
+     static let pipelinesMenuIcon = "flowchart"
+     static let maxFloatingButtons = 5
+     static let maxCompactButtons = 9
+-    static let defaultFloating: [FloatingAction] = [.downscale, .restoreOptimise, .compression, .aggressiveOptimisation, .share, .sendSecurely]
++    static let defaultFloating: [FloatingAction] = [.downscale, .restoreOptimise, .compression, .aggressiveOptimisation, .share]
+     static let defaultCompact: [FloatingAction] = [.downscale, .compression, .crop, .quickLook, .restoreOptimise, .showInFinder, .saveAs, .copyToClipboard, .share]
+ 
+     /// Built-in actions only; pipeline actions come from the saved pipelines library.
+     static let allCases: [FloatingAction] = [
+         .downscale, .compression, .crop, .share, .restoreOptimise, .aggressiveOptimisation, .copyToClipboard,
+-        .showInFinder, .quickLook, .saveAs, .addToShelf, .sendSecurely, .targetSize,
++        .showInFinder, .quickLook, .saveAs, .addToShelf, .targetSize,
+     ]
+ 
+     var rawValue: String {
+@@ -3064,15 +3064,19 @@ struct ActionButton: View {
+             }
+             .contentShape(Rectangle())
+         case .sendSecurely:
+-            if optimiser.warpDropConnecting {
+-                ProgressView()
+-                    .controlSize(.mini)
+-                    .scaleEffect(0.6)
+-            } else if let session = WDM.session(forOptimiser: optimiser) {
+-                WarpDropActiveButton(session: session, optimiser: optimiser)
+-            } else {
+-                SendSecurelyStartButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
+-            }
++            #if !CLOPPY
++                if optimiser.warpDropConnecting {
++                    ProgressView()
++                        .controlSize(.mini)
++                        .scaleEffect(0.6)
++                } else if let session = WDM.session(forOptimiser: optimiser) {
++                    WarpDropActiveButton(session: session, optimiser: optimiser)
++                } else {
++                    SendSecurelyStartButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
++                }
++            #else
++                EmptyView()
++            #endif
+         case .targetSize:
+             TargetSizeButton(optimiser: optimiser, inFloatingCard: inFloatingCard)
+         case .pipeline:
+diff --git a/Clop/WarpDropManager.swift b/Clop/WarpDropManager.swift
+index 8885965..86e4a35 100644
+--- a/Clop/WarpDropManager.swift
++++ b/Clop/WarpDropManager.swift
+@@ -2,7 +2,9 @@ import Cocoa
+ import Defaults
+ import Foundation
+ import os
+-import WarpDrop
++#if canImport(WarpDrop)
++    import WarpDrop
++#endif
+ 
+ private let log = Logger(subsystem: LOG_SUBSYSTEM, category: "WarpDrop")
+ 
+@@ -276,114 +278,127 @@ func warpDropSend(optimisers: [Optimiser], expiration: TimeInterval? = nil) {
+ 
+ @MainActor
+ private func warpDropSendFiles(_ files: [URL], overlayOptimisers: [Optimiser], expiration: TimeInterval? = nil) {
+-    let expiresAt = resolveLinkExpiry(expiration)
+-    let client = WarpDropClient()
+-    let roomIDRef = Ref<String?>(nil)
+-
+-    let task = Task.detached { () -> String in
+-        try await client.send(
+-            files: files,
+-            multi: true, // serve every receiver at once instead of one-at-a-time
+-            maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
+-            onRoomCreated: { [roomIDRef] roomID in
+-                roomIDRef.value = roomID
+-                Task { @MainActor in
+-                    let shareURL = files.count == 1
+-                        ? "https://drop.lowtechguys.com/d/\(roomID)"
+-                        : "https://drop.lowtechguys.com/r/\(roomID)"
+-                    withGeneralPasteboard { pb in
+-                        pb.clearContents()
+-                        pb.setString(shareURL, forType: .string)
++    #if canImport(WarpDrop)
++        let expiresAt = resolveLinkExpiry(expiration)
++        let client = WarpDropClient()
++        let roomIDRef = Ref<String?>(nil)
++
++        let task = Task.detached { () -> String in
++            try await client.send(
++                files: files,
++                multi: true, // serve every receiver at once instead of one-at-a-time
++                maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
++                onRoomCreated: { [roomIDRef] roomID in
++                    roomIDRef.value = roomID
++                    Task { @MainActor in
++                        let shareURL = files.count == 1
++                            ? "https://drop.lowtechguys.com/d/\(roomID)"
++                            : "https://drop.lowtechguys.com/r/\(roomID)"
++                        withGeneralPasteboard { pb in
++                            pb.clearContents()
++                            pb.setString(shareURL, forType: .string)
++                        }
++
++                        for optimiser in overlayOptimisers {
++                            optimiser.warpDropConnecting = false
++                        }
++                        overlayOptimisers.first?.overlayMessage = "Copied link"
+                     }
+-
+-                    for optimiser in overlayOptimisers {
+-                        optimiser.warpDropConnecting = false
++                },
++                onDownloadCompleted: { [roomIDRef] count in
++                    guard let roomID = roomIDRef.value else { return }
++                    Task { @MainActor in
++                        WDM.didCompleteDownload(roomID: roomID, count: count)
+                     }
+-                    overlayOptimisers.first?.overlayMessage = "Copied link"
+                 }
+-            },
+-            onDownloadCompleted: { [roomIDRef] count in
+-                guard let roomID = roomIDRef.value else { return }
+-                Task { @MainActor in
+-                    WDM.didCompleteDownload(roomID: roomID, count: count)
++            )
++        }
++
++        Task {
++            defer {
++                for optimiser in overlayOptimisers {
++                    optimiser.warpDropConnecting = false
+                 }
++                // Clear the in-flight reservation if the room never got created
++                // (timeout/cancel). On success addSession already cleared it.
++                WDM.releaseConnecting(files)
+             }
+-        )
+-    }
+-
+-    Task {
+-        defer {
+-            for optimiser in overlayOptimisers {
+-                optimiser.warpDropConnecting = false
++            for _ in 0 ..< 300 {
++                try? await Task.sleep(for: .milliseconds(100))
++                if let roomID = roomIDRef.value {
++                    WDM.addSession(roomID: roomID, files: files, task: task, expiresAt: expiresAt)
++                    return
++                }
++                if task.isCancelled { return }
+             }
+-            // Clear the in-flight reservation if the room never got created
+-            // (timeout/cancel). On success addSession already cleared it.
+-            WDM.releaseConnecting(files)
+         }
+-        for _ in 0 ..< 300 {
+-            try? await Task.sleep(for: .milliseconds(100))
+-            if let roomID = roomIDRef.value {
+-                WDM.addSession(roomID: roomID, files: files, task: task, expiresAt: expiresAt)
+-                return
+-            }
+-            if task.isCancelled { return }
++    #else
++        WDM.releaseConnecting(files)
++        for optimiser in overlayOptimisers {
++            optimiser.warpDropConnecting = false
++            optimiser.overlayMessage = "Secure sending is unavailable in Cloppy"
+         }
+-    }
++    #endif
+ }
+ 
+ /// Send a single file securely and await the share link.
+ /// Returns the share URL on success, nil on failure or timeout.
+ @MainActor
+ func warpDropSendAndWait(url: URL, optimiser: Optimiser, expiration: TimeInterval? = nil) async -> String? {
+-    // Already shared: return the existing link instead of opening another room.
+-    if let session = WDM.session(forPath: url.path) {
+-        return session.shareURL
+-    }
+-    // Already connecting from another trigger: don't start a duplicate transfer.
+-    guard WDM.reserveForSending([url]).isNotEmpty else {
+-        return WDM.session(forPath: url.path)?.shareURL
+-    }
+-    defer { WDM.releaseConnecting([url]) }
+-
+-    let expiresAt = resolveLinkExpiry(expiration)
+-    let client = WarpDropClient()
+-    let roomIDRef = Ref<String?>(nil)
+-
+-    let task = Task.detached { () -> String in
+-        try await client.send(
+-            files: [url],
+-            multi: true, // serve every receiver at once instead of one-at-a-time
+-            maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
+-            onRoomCreated: { [roomIDRef] roomID in
+-                roomIDRef.value = roomID
+-                Task { @MainActor in
+-                    let shareURL = "https://drop.lowtechguys.com/d/\(roomID)"
+-                    withGeneralPasteboard { pb in
+-                        pb.clearContents()
+-                        pb.setString(shareURL, forType: .string)
++    #if canImport(WarpDrop)
++        // Already shared: return the existing link instead of opening another room.
++        if let session = WDM.session(forPath: url.path) {
++            return session.shareURL
++        }
++        // Already connecting from another trigger: don't start a duplicate transfer.
++        guard WDM.reserveForSending([url]).isNotEmpty else {
++            return WDM.session(forPath: url.path)?.shareURL
++        }
++        defer { WDM.releaseConnecting([url]) }
++
++        let expiresAt = resolveLinkExpiry(expiration)
++        let client = WarpDropClient()
++        let roomIDRef = Ref<String?>(nil)
++
++        let task = Task.detached { () -> String in
++            try await client.send(
++                files: [url],
++                multi: true, // serve every receiver at once instead of one-at-a-time
++                maxReceivers: 20, // 0 = server default (256); old backends ignore multi and fall back to sequential
++                onRoomCreated: { [roomIDRef] roomID in
++                    roomIDRef.value = roomID
++                    Task { @MainActor in
++                        let shareURL = "https://drop.lowtechguys.com/d/\(roomID)"
++                        withGeneralPasteboard { pb in
++                            pb.clearContents()
++                            pb.setString(shareURL, forType: .string)
++                        }
++                        optimiser.overlayMessage = "Copied link"
++                    }
++                },
++                onDownloadCompleted: { [roomIDRef] count in
++                    guard let roomID = roomIDRef.value else { return }
++                    Task { @MainActor in
++                        WDM.didCompleteDownload(roomID: roomID, count: count)
+                     }
+-                    optimiser.overlayMessage = "Copied link"
+-                }
+-            },
+-            onDownloadCompleted: { [roomIDRef] count in
+-                guard let roomID = roomIDRef.value else { return }
+-                Task { @MainActor in
+-                    WDM.didCompleteDownload(roomID: roomID, count: count)
+                 }
+-            }
+-        )
+-    }
++            )
++        }
+ 
+-    for _ in 0 ..< 300 {
+-        try? await Task.sleep(for: .milliseconds(100))
+-        if let roomID = roomIDRef.value {
+-            WDM.addSession(roomID: roomID, files: [url], task: task, expiresAt: expiresAt)
+-            return "https://drop.lowtechguys.com/d/\(roomID)"
++        for _ in 0 ..< 300 {
++            try? await Task.sleep(for: .milliseconds(100))
++            if let roomID = roomIDRef.value {
++                WDM.addSession(roomID: roomID, files: [url], task: task, expiresAt: expiresAt)
++                return "https://drop.lowtechguys.com/d/\(roomID)"
++            }
++            if task.isCancelled { return nil }
+         }
+-        if task.isCancelled { return nil }
+-    }
+ 
+-    return nil
++        return nil
++    #else
++        optimiser.overlayMessage = "Secure sending is unavailable in Cloppy"
++        return nil
++    #endif
+ }
+ 
+ /// Thread-safe mutable reference for sharing values across sendable closures.

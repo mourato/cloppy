@@ -1,0 +1,27 @@
+Clop/bin/*
+Clop/bin-*/*
+Clop/bin.zip
+*.dmg
+*.delta
+*.bkp
+Releases/*.html
+required.swift
+Releases/old_updates/
+*.tmp
+build/
+test/
+
+# Tests, fixtures, corpuses and dev/AI specs — keep private, never publish
+ClopTests/
+docs/superpowers/
+docs/specs/
+*.corpus.json
+
+# subagent-driven-development scratch workspace
+.superpowers/
+
+# Disposable task worktrees
+.worktrees/
+
+# Local CodeGraph index
+/.codegraph/
