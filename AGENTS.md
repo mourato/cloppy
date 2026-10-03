@@ -68,6 +68,14 @@ private `ClopTests/`, specs and corpora; preserve their publication boundaries.
 
 `main` is our integration/default branch. `origin` is our fork; `upstream` is
 original Clop. `cloppy` remains a historical reference, not an integration target.
+
+**Upstream is strictly read-only. Under no circumstances commit or merge into
+the original Clop repository, push to it, or open pull requests targeting it.**
+This prohibition applies regardless of remote name, URL, CLI, API or tooling.
+Keep all commits, merges, pushes and pull requests within our Cloppy fork;
+merge, push and PR publication still require explicit authorization.
+Reading or fetching upstream and importing its releases into our fork is allowed.
+
 Merge upstream releases through the reviewed update flow rather than replacing
 fork files with upstream versions; preserve Cloppy's Makefile and scripts.
 
@@ -79,7 +87,8 @@ Cleanup may remove update-candidate artifacts; rebuild from `main` when needed.
 
 Cleanup delegates to the local agent-config checkout at
 `${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/cleanup-merged-worktrees.sh`.
-Before integration, confirm push upstream and helper integration ref agree;
+Before integration, confirm the push destination is our fork (`origin`) and
+its tracking branch and helper integration ref agree;
 the helper prefers `origin/HEAD`, which should point to `origin/main`.
 Only clean, fully merged canonical `.worktrees/<slug>` checkouts with matching
 branch names qualify. Inspect dry-run before manual cleanup; limit it to the
