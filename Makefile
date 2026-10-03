@@ -176,4 +176,5 @@ bin: Clop/bin.tar.lrz
 
 .PHONY: hooks
 hooks:
-	@ln -sf "$(CURDIR)/.pre-commit.sh" .git/hooks/pre-commit && echo "pre-commit hook installed -> .pre-commit.sh"
+	@git config --local core.hooksPath .githooks
+	@echo "Git LFS hooks enabled; merges on main/master push, then clean merged worktrees"
