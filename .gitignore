@@ -22,3 +22,6 @@ docs/specs/
 
 # Disposable task worktrees
 .worktrees/
+
+# Local CodeGraph index
+/.codegraph/
