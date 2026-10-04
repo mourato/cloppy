@@ -484,7 +484,7 @@ index f01acae..d858d77 100644
      /// the wait here is a person's wait.
      static func startServer(wait: TimeInterval = 90) throws -> ToolOutput {
 diff --git a/ClopCLI/main.swift b/ClopCLI/main.swift
-index ad7c549..650e695 100644
+index fe3103a..1adeef4 100644
 --- a/ClopCLI/main.swift
 +++ b/ClopCLI/main.swift
 @@ -32,7 +32,7 @@ extension URL {
@@ -540,7 +540,16 @@ index ad7c549..650e695 100644
                      }
                      return
                  }
-@@ -2849,7 +2848,8 @@ struct Clop: ParsableCommand {
+@@ -2864,7 +2863,7 @@ struct Clop: ParsableCommand {
+             var action: LogPersistAction
+ 
+             mutating func run() throws {
+-                // sudo remembers the password, so three subsystems ask once.
++                // sudo remembers the password, so both subsystems ask once.
+                 for subsystem in CLOP_LOG_SUBSYSTEMS {
+                     let status: Int32
+                     do {
+@@ -2891,7 +2890,8 @@ struct Clop: ParsableCommand {
      }
  
      static let configuration = CommandConfiguration(
@@ -550,6 +559,24 @@ index ad7c549..650e695 100644
          subcommands: [
              Optimise.self,
              Crop.self,
+@@ -2947,7 +2947,7 @@ func runInForeground(_ argv: [String]) throws -> Int32 {
+ /// Spelled out rather than derived from `LOG_SUBSYSTEM`, which is only the running binary's own id:
+ /// the CLI has to reach the app's subsystem and the Setapp build's too, and `log config` matches one
+ /// exact subsystem, never a prefix.
+-let CLOP_LOG_SUBSYSTEMS = ["com.lowtechguys.Clop", "com.lowtechguys.Clop-setapp", "com.lowtechguys.Clop.CLI"]
++let CLOP_LOG_SUBSYSTEMS = ["local.cloppy.app", "local.cloppy.app.CLI"]
+ 
+ /// Shared by `clop logs persist` and the `clop_debug_logs` MCP tool, which differ only in how they
+ /// get root: sudo in a terminal, an administrator dialog when there is no terminal.
+@@ -2959,7 +2959,7 @@ enum LogPersistAction: String, CaseIterable, ExpressibleByArgument {
+         switch self {
+         case .on: """
+             Debug logs for Clop are kept now. Read them with:
+-                log show --debug --info --last 1h --predicate 'subsystem BEGINSWITH "com.lowtechguys.Clop"'
++                log show --debug --info --last 1h --predicate 'subsystem BEGINSWITH "local.cloppy.app"'
+             """
+         case .off: "Debug logs for Clop are back to the macOS default"
+         case .status: nil
 diff --git a/Shared.swift b/Shared.swift
 index fde8d48..5333f82 100644
 --- a/Shared.swift

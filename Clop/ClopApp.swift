@@ -295,7 +295,7 @@ class AppDelegate: AppDelegateParent {
     @MainActor var resolvingDrag = false
 
     @MainActor lazy var dragMonitor = GlobalEventMonitor(mask: [.leftMouseDragged]) { event in
-        guard self.finishedOnboarding, NSEvent.pressedMouseButtons > 0, proactive || DM.optimisationCount <= 5 else {
+        guard self.finishedOnboarding, NSEvent.pressedMouseButtons > 0, proactive || DM.optimisationCount.used <= 5 else {
             return
         }
 
@@ -767,7 +767,7 @@ class AppDelegate: AppDelegateParent {
                             item,
                             id: item.id,
                             adaptiveOptimisation: false,
-                            optimisationCount: &manualOptimisationCount,
+                            optimisationCount: manualOptimisationCount,
                             copyToClipboard: false,
                             source: source,
                             removeAudio: false,
@@ -1990,7 +1990,7 @@ class ContextualMenuServiceProvider: NSObject {
                         downscaleTo: nil,
                         changePlaybackSpeedBy: nil,
                         aggressiveOptimisation: nil,
-                        optimisationCount: &manualOptimisationCount,
+                        optimisationCount: manualOptimisationCount,
                         copyToClipboard: false,
                         source: .service
                     )

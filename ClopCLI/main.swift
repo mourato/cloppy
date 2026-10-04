@@ -2847,6 +2847,48 @@ struct Clop: ParsableCommand {
         )
     }
 
+    struct LogsCommand: ParsableCommand {
+        /// Release builds ship without the debug level the Debug build phase writes into
+        /// `OSLogPreferences`, and an installed copy's Info.plist cannot change without breaking its
+        /// signature, so the system setting is the switch left for them. `log config` needs root, and
+        /// it runs under sudo right here rather than through the app so the password prompt lands in
+        /// the terminal that asked for it.
+        struct Persist: ParsableCommand {
+            static let configuration = CommandConfiguration(
+                abstract: "Keep Clop's debug logs on disk so `log show` can read them later",
+                discussion: "macOS keeps debug and info messages only in memory, so they are gone before anyone looks. Changing this needs an administrator password."
+            )
+
+            @Argument(help: "on, off or status")
+            var action: LogPersistAction
+
+            mutating func run() throws {
+                // sudo remembers the password, so both subsystems ask once.
+                for subsystem in CLOP_LOG_SUBSYSTEMS {
+                    let status: Int32
+                    do {
+                        status = try runInForeground(["/usr/bin/sudo", "/usr/bin/log"] + action.logConfigArguments(subsystem: subsystem))
+                    } catch {
+                        printerr("Could not change the log settings: \(error)")
+                        throw ExitCode.failure
+                    }
+                    guard status == 0 else {
+                        printerr("Could not change the log settings: sudo exited with status \(status)")
+                        throw ExitCode(status)
+                    }
+                }
+                if let message = action.doneMessage {
+                    print(message)
+                }
+            }
+        }
+
+        static let configuration = CommandConfiguration(
+            commandName: "logs",
+            subcommands: [Persist.self]
+        )
+    }
+
     static let configuration = CommandConfiguration(
         commandName: "cloppy",
         abstract: "Cloppy: optimise, crop and downscale images, videos, audio files and PDFs",
@@ -2861,8 +2903,87 @@ struct Clop: ParsableCommand {
             PipelineCommand.self,
             SettingsCommand.self,
             MCPCommand.self,
+            LogsCommand.self,
         ]
     )
+}
+
+// MARK: - Debug logs
+
+/// Why spawning failed, worded for the end of "Could not change the log settings: ".
+struct SpawnError: Error, CustomStringConvertible {
+    let description: String
+}
+
+/// Runs `argv` on the terminal's own stdin, stdout and stderr and returns its exit status.
+///
+/// posix_spawn rather than Process: Process starts the child in a process group of its own, which
+/// the terminal treats as a background job. sudo turns echo off before asking for the password, the
+/// kernel stops a background group that changes the terminal's settings with SIGTTOU, and the command
+/// hangs before the prompt shows whenever sudo has no cached password. Spawned in our group the child
+/// stays in the foreground, and Ctrl-C reaches it too.
+func runInForeground(_ argv: [String]) throws -> Int32 {
+    var cArgs: [UnsafeMutablePointer<CChar>?] = argv.map { strdup($0) } + [nil]
+    defer { cArgs.forEach { free($0) } }
+
+    var pid: pid_t = 0
+    let spawned = posix_spawn(&pid, argv[0], nil, nil, &cArgs, environ)
+    guard spawned == 0 else {
+        throw SpawnError(description: "could not run \(argv[0]): \(String(cString: strerror(spawned)))")
+    }
+
+    var status: Int32 = 0
+    while waitpid(pid, &status, 0) == -1 {
+        guard errno == EINTR else {
+            throw SpawnError(description: "lost track of \(argv[0]): \(String(cString: strerror(errno)))")
+        }
+    }
+    // WIFEXITED and friends are C macros Swift can't see. The low 7 bits are the signal that ended
+    // the process, 0 when it exited on its own; reported the way a shell does, as 128 + the signal.
+    let signal = status & 0x7F
+    return signal == 0 ? (status >> 8) & 0xFF : 128 + signal
+}
+
+/// Spelled out rather than derived from `LOG_SUBSYSTEM`, which is only the running binary's own id:
+/// the CLI has to reach the app's subsystem and the Setapp build's too, and `log config` matches one
+/// exact subsystem, never a prefix.
+let CLOP_LOG_SUBSYSTEMS = ["local.cloppy.app", "local.cloppy.app.CLI"]
+
+/// Shared by `clop logs persist` and the `clop_debug_logs` MCP tool, which differ only in how they
+/// get root: sudo in a terminal, an administrator dialog when there is no terminal.
+enum LogPersistAction: String, CaseIterable, ExpressibleByArgument {
+    case on, off, status
+
+    /// nil for status, whose answer is what `log config` printed.
+    var doneMessage: String? {
+        switch self {
+        case .on: """
+            Debug logs for Clop are kept now. Read them with:
+                log show --debug --info --last 1h --predicate 'subsystem BEGINSWITH "local.cloppy.app"'
+            """
+        case .off: "Debug logs for Clop are back to the macOS default"
+        case .status: nil
+        }
+    }
+
+    /// The administrator dialog's text, which would otherwise read "osascript wants to make changes."
+    var passwordPrompt: String {
+        switch self {
+        case .on: "Clop wants to keep its debug logs on disk."
+        case .off: "Clop wants to reset its log settings to the macOS default."
+        case .status: "Clop wants to read its log settings."
+        }
+    }
+
+    /// One `/usr/bin/log` invocation for one subsystem.
+    func logConfigArguments(subsystem: String) -> [String] {
+        switch self {
+        case .on: ["config", "--subsystem", subsystem, "--mode", "level:debug,persist:debug"]
+        case .off: ["config", "--subsystem", subsystem, "--reset"]
+        case .status: ["config", "--status", "--subsystem", subsystem]
+        }
+    }
+
 }
 
 // MARK: - Pipeline CLI helpers
