@@ -4,7 +4,9 @@ import importlib.util
 import io
 import os
 from pathlib import Path
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -33,11 +35,21 @@ class UpdateTests(unittest.TestCase):
         self.configure(self.repo)
         self.run_git(self.repo, 'remote', 'rename', 'origin', 'upstream')
         (self.repo / 'local.txt').write_text('Cloppy local changes\n')
-        self.commit(self.repo, 'local fork')
+        queue = self.repo / '.cloppy'
+        (queue / 'patches').mkdir(parents=True)
+        for name in ['apply.sh', 'queue.py']:
+            shutil.copy2(ROOT / '.cloppy' / name, queue / name)
+        (queue / 'UPSTREAM').write_text(self.run_git(self.upstream, 'rev-parse', 'HEAD') + '\n')
+        self.refresh_queue('local fork')
         self.base = self.run_git(self.repo, 'rev-parse', 'HEAD')
         self.interactive = patch.object(updater.sys.stdin, 'isatty', return_value=True)
         self.interactive.start()
         self.addCleanup(self.interactive.stop)
+
+    def refresh_queue(self, message):
+        self.run_git(self.repo, 'add', '-A')
+        subprocess.run([sys.executable, str(self.repo / '.cloppy/queue.py'), 'refresh'], cwd=self.repo, check=True)
+        self.commit(self.repo, message)
 
     def run_git(self, repo, *args):
         return subprocess.run(['git', '-C', str(repo), *args], check=True, text=True, capture_output=True).stdout.strip()
@@ -72,6 +84,9 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual((self.repo / 'new.txt').read_text(), 'stable upstream feature\n')
         self.assertFalse((self.repo / 'beta.txt').exists())
         self.run_git(self.repo, 'merge-base', '--is-ancestor', stable, 'HEAD')
+        self.assertEqual(self.run_git(self.repo, 'show', '-s', '--format=%P', 'HEAD').split(), [self.base, stable])
+        self.assertEqual((self.repo / '.cloppy/UPSTREAM').read_text(), stable + '\n')
+        self.assertTrue((self.repo / '.cloppy/overlay/local.txt').is_file())
         self.assertTrue((self.repo / '.worktrees/cloppy-update-v1-1-0/build/verified').is_file())
         self.assertFalse(self.run_git(self.repo, 'status', '--porcelain'))
         tip = self.run_git(self.repo, 'rev-parse', 'HEAD')
@@ -106,16 +121,34 @@ class UpdateTests(unittest.TestCase):
         self.assertNotIn('Validated artifact:', output.getvalue())
         self.assertNotIn('No push', output.getvalue())
 
-    def test_conflict_never_changes_current_version(self):
+    def own_shared_in_patch(self):
+        (self.repo / '.cloppy/patches/0001-shared.patch').write_text('diff --git a/shared.txt b/shared.txt\n')
         (self.repo / 'shared.txt').write_text('local edit\n')
-        self.commit(self.repo, 'local edit')
-        base = self.run_git(self.repo, 'rev-parse', 'HEAD')
+        self.refresh_queue('local edit')
         (self.upstream / 'shared.txt').write_text('upstream edit\n')
         self.release()
-        with self.assertRaisesRegex(RuntimeError, 'conflicts'):
+
+    def test_conflict_never_changes_current_version(self):
+        self.own_shared_in_patch()
+        base = self.run_git(self.repo, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(RuntimeError, 'conflict'):
             self.invoke()
         self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), base)
         self.assertEqual((self.repo / 'shared.txt').read_text(), 'local edit\n')
+
+    def test_resolved_conflict_is_folded_back_into_the_patch(self):
+        self.own_shared_in_patch()
+        with self.assertRaisesRegex(RuntimeError, 'conflict'):
+            self.invoke()
+        candidate = self.repo / '.worktrees/cloppy-update-v1-1-0'
+        with self.assertRaisesRegex(RuntimeError, 'Resolve conflicts'):
+            self.invoke()
+        (candidate / 'shared.txt').write_text('upstream edit, local edit\n')
+        self.run_git(candidate, 'add', '-A')
+        self.invoke()
+        self.assertEqual((self.repo / 'shared.txt').read_text(), 'upstream edit, local edit\n')
+        self.assertIn('+upstream edit, local edit', (self.repo / '.cloppy/patches/0001-shared.patch').read_text())
+        subprocess.run([sys.executable, str(self.repo / '.cloppy/queue.py'), 'verify'], cwd=self.repo, check=True)
 
     def test_failed_build_never_integrates(self):
         self.release(fail_build=True)
@@ -134,7 +167,7 @@ class UpdateTests(unittest.TestCase):
             self.invoke(side_effect=edit)
         self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), self.base)
 
-    def test_commit_hook_changes_are_never_integrated(self):
+    def test_commit_hooks_never_alter_the_reviewed_tree(self):
         self.release()
         hooks = Path(self.temp.name) / 'hooks'
         hooks.mkdir()
@@ -142,10 +175,8 @@ class UpdateTests(unittest.TestCase):
         hook.write_text('#!/bin/sh\nprintf "unreviewed hook edit\\n" > new.txt\ngit add new.txt\n')
         hook.chmod(0o755)
         self.run_git(self.repo, 'config', 'core.hooksPath', str(hooks))
-        with self.assertRaisesRegex(RuntimeError, 'Committed candidate changed'):
-            self.invoke()
-        self.assertEqual(self.run_git(self.repo, 'rev-parse', 'HEAD'), self.base)
-        self.assertFalse((self.repo / 'new.txt').exists())
+        self.invoke()
+        self.assertEqual((self.repo / 'new.txt').read_text(), 'stable upstream feature\n')
 
     def test_same_tree_history_change_during_review_is_rejected(self):
         self.release()

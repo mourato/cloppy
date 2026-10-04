@@ -13,6 +13,9 @@ activation, official Sparkle updates, iCloud sync, reporting and WarpDrop.
 - `Shared.swift` and `Shared/`: contracts and types shared by app and CLI.
 - `Clop.xcodeproj/`: target membership, pinned packages, signing and build settings.
 - `Scripts/`: build, signing, installation, validation and upstream update owners.
+- `.cloppy/`: fork as overlay plus patch queue over `.cloppy/UPSTREAM`; tracked tree
+  must equal upstream + `.cloppy/apply.sh`. After staging fork changes, run
+  `.cloppy/queue.py refresh` and commit the regenerated queue with them.
 
 Trace app and CLI callers before changing shared requests, responses or settings.
 Preserve Codable compatibility, error replies, cancellation, file backups and
@@ -31,7 +34,8 @@ Root Makefile owns commands; inspect `make -C "$repo" -n <target>` first.
 - `make -C "$repo" install`: builds and replaces only `/Applications/Cloppy.app`
   with staging, concurrency checks and rollback. Run when installation is requested.
 - `make -C "$repo" package`: builds and produces `build/Cloppy.zip`.
-- `make -C "$repo" check`: Python tests for installer and update orchestration.
+- `make -C "$repo" check`: Python tests for installer, update orchestration and
+  patch-queue reproduction.
 - `make -C "$repo" update`: stable upstream release in an isolated worktree;
   tests, signed build and terminal review precede local integration.
 - `make -C "$repo" hooks`: enable this clone's versioned Git hooks.
@@ -76,8 +80,9 @@ Keep all commits, merges, pushes and pull requests within our Cloppy fork;
 merge, push and PR publication still require explicit authorization.
 Reading or fetching upstream and importing its releases into our fork is allowed.
 
-Merge upstream releases through the reviewed update flow rather than replacing
-fork files with upstream versions; preserve Cloppy's Makefile and scripts.
+Import upstream releases through the reviewed update flow, which rebuilds the
+release plus `.cloppy` instead of merging; never hand-merge upstream into `main`.
+Preserve Cloppy's Makefile and scripts in `.cloppy/overlay`.
 
 Hooks are opt-in per clone through `core.hooksPath=.githooks` and retain Git LFS.
 Authorised merges on `main`/`master`, including approved `make update` integration,

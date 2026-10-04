@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare, build, review and fast-forward a stable upstream update locally."""
+"""Rebuild Cloppy on the latest stable upstream release from .cloppy, then build, review and fast-forward locally."""
 import os
 from pathlib import Path
 import re
@@ -14,6 +14,22 @@ def git(repo, *args, capture=True):
         stdout=subprocess.PIPE if capture else None,
     )
     return result.stdout.strip() if capture else None
+
+
+def candidate_upstream(worktree):
+    path = worktree / '.cloppy/UPSTREAM'
+    return path.read_text().strip() if path.is_file() else None
+
+
+def assemble(worktree, base, upstream):
+    """Stage upstream's tree plus base's .cloppy queue; False leaves patch conflicts to resolve."""
+    git(worktree, 'read-tree', '-u', '--reset', upstream)
+    git(worktree, 'checkout', base, '--', '.cloppy')
+    (worktree / '.cloppy/UPSTREAM').write_text(f'{upstream}\n')
+    if subprocess.run([str(worktree / '.cloppy/apply.sh')], cwd=worktree).returncode:
+        return False
+    git(worktree, 'add', '-A')
+    return True
 
 
 def update(repo):
@@ -45,18 +61,22 @@ def update(repo):
     slug = f'cloppy-update-{release.replace(".", "-")}'
     worktree = common.parent / '.worktrees' / slug
     if worktree.exists():
-        if git(worktree, 'symbolic-ref', '--quiet', '--short', 'HEAD') != slug or git(worktree, 'rev-parse', 'HEAD') != base or git(worktree, 'rev-parse', '--verify', 'MERGE_HEAD') != upstream:
+        if git(worktree, 'symbolic-ref', '--quiet', '--short', 'HEAD') != slug or git(worktree, 'rev-parse', 'HEAD') != base or candidate_upstream(worktree) != upstream:
             raise RuntimeError(f'Existing candidate has another base/release; inspect {worktree}.')
         if git(worktree, 'ls-files', '--unmerged'):
-            raise RuntimeError(f'Resolve and stage conflicts in {worktree}, then rerun make update.')
+            raise RuntimeError(f'Resolve conflicts in {worktree}, stage everything with git add -A, then rerun make update.')
     else:
         subprocess.run([str(helper), slug, '--repo', str(repo), '--base', base], check=True)
-        merge = subprocess.run(['git', '-C', str(worktree), 'merge', '--no-ff', '--no-commit', upstream])
-        if merge.returncode:
-            raise RuntimeError(f'Upstream conflicts. Current version unchanged; inspect {worktree}.')
+        if not assemble(worktree, base, upstream):
+            raise RuntimeError(f'Patches conflict with upstream. Current version unchanged; resolve in {worktree}, stage everything with git add -A, then rerun make update.')
     print(f'Update candidate: {worktree}', flush=True)
     if git(worktree, 'diff') or git(worktree, 'ls-files', '--others', '--exclude-standard'):
         raise RuntimeError(f'Stage candidate edits before validation: {worktree}.')
+    # Fold conflict resolutions back into the queue, then prove upstream + queue gives this tree.
+    queue = worktree / '.cloppy/queue.py'
+    subprocess.run([sys.executable, str(queue), 'refresh'], cwd=worktree, check=True)
+    git(worktree, 'add', '-A', '--', '.cloppy')
+    subprocess.run([sys.executable, str(queue), 'verify'], cwd=worktree, check=True)
     try:
         git(worktree, 'diff', '--check')
         git(worktree, 'diff', '--cached', '--check')
@@ -77,10 +97,12 @@ def update(repo):
             return
         if git(repo, 'symbolic-ref', '--quiet', '--short', 'HEAD') != branch or git(repo, 'rev-parse', 'HEAD') != base or git(repo, 'status', '--porcelain'):
             raise RuntimeError('Source checkout changed during review; refusing integration.')
-        if git(worktree, 'symbolic-ref', '--quiet', '--short', 'HEAD') != slug or git(worktree, 'rev-parse', 'HEAD') != base or git(worktree, 'rev-parse', '--verify', 'MERGE_HEAD') != upstream or git(worktree, 'write-tree') != tree or git(worktree, 'diff') or git(worktree, 'ls-files', '--others', '--exclude-standard'):
+        if git(worktree, 'symbolic-ref', '--quiet', '--short', 'HEAD') != slug or git(worktree, 'rev-parse', 'HEAD') != base or candidate_upstream(worktree) != upstream or git(worktree, 'write-tree') != tree or git(worktree, 'diff') or git(worktree, 'ls-files', '--others', '--exclude-standard'):
             raise RuntimeError('Candidate changed during build/review. Validate edits before integrating manually.')
-        git(worktree, 'commit', '-m', f'Merge Clop {release} into Cloppy', capture=False)
-        candidate = git(worktree, 'rev-parse', 'HEAD')
+        # The candidate tree is upstream + .cloppy, not a merge result; upstream as second parent keeps
+        # releases detectable by ancestry and lets main fast-forward.
+        candidate = git(worktree, 'commit-tree', tree, '-p', base, '-p', upstream, '-m', f'Merge Clop {release} into Cloppy')
+        git(worktree, 'reset', '-q', '--soft', candidate)
         if git(worktree, 'rev-parse', f'{candidate}^{{tree}}') != tree or git(worktree, 'show', '-s', '--format=%P', candidate).split() != [base, upstream] or git(worktree, 'status', '--porcelain'):
             raise RuntimeError('Committed candidate changed after validation; refusing integration.')
         if git(repo, 'symbolic-ref', '--quiet', '--short', 'HEAD') != branch or git(repo, 'rev-parse', 'HEAD') != base or git(repo, 'status', '--porcelain'):

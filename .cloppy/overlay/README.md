@@ -60,25 +60,35 @@ It requires a clean attached checkout, fetches version tags, ignores betas and
 selects the latest stable `vMAJOR.MINOR.PATCH` release. Already-current updates
 exit without changing your branch. New releases use the canonical worktree helper
 at `${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/new-worktree.sh` and an isolated
-`cloppy-update-vX-Y-Z` branch. Tests and signed build run before displaying the diff.
+`cloppy-update-vX-Y-Z` branch. The candidate is rebuilt rather than merged: the
+release's tree, plus fork-owned files from `.cloppy/overlay`, plus `.cloppy/patches`
+applied with `git apply --3way` (see [.cloppy/README.md](.cloppy/README.md)).
+Tests and signed build run before displaying the diff.
 Review happens in the terminal: check access, updater, telemetry, sharing,
 identity and permissions, then explicitly approve integration. A yes commits
-the merge candidate and fast-forwards your original branch to that exact candidate.
+the candidate with the previous branch tip and the release as parents and fast-forwards your original branch to that exact candidate.
 Source/candidate changes during review block publication. Installation is separate;
 run `make install` afterward. With `make hooks` enabled, integration on `main`
 also invokes the post-merge push and cleanup finalizer. Push failure skips cleanup;
 inspect hook output to confirm each result. Cleanup may remove the validated
 candidate and its build artifacts; `make build` rebuilds from the integrated branch.
 
-Conflicts, failed checks or declined review preserve the original branch and
-leave the candidate for inspection. Resolve conflicts and stage the resolution
-in the reported worktree, then rerun `make update` from the original checkout.
+Patch conflicts, failed checks or declined review preserve the original branch and
+leave the candidate for inspection. Resolve conflicts and stage everything with
+`git add -A` in the reported worktree, then rerun `make update` from the original
+checkout; the rerun folds the resolution back into `.cloppy` and proves that the
+release plus the queue reproduces the candidate.
 An existing candidate with another base/release stops rather than being reset.
 Without the post-merge finalizer, candidates remain after successful integration
 for build evidence and recovery.
 
-Retain Cloppy's Makefile and scripts when resolving upstream release-tooling
-conflicts; the original project's install flow targets the official app.
+Change fork behaviour on `main` as usual, stage it and run
+`.cloppy/queue.py refresh` before committing: it rewrites the owning patch or overlay
+file. A changed upstream file that no patch owns stops the refresh until you list it
+in a patch. `make check` fails whenever `.cloppy` no longer reproduces the tree.
+
+Retain Cloppy's Makefile and scripts in `.cloppy/overlay`; the original project's
+install flow targets the official app.
 
 The `CLOPPY` compilation condition separates local startup from commercial
 startup. Local full access lives in `Clop/CloppyAccess.swift`; the optimisation
