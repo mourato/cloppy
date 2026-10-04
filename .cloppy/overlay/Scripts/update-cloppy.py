@@ -10,7 +10,7 @@ import sys
 
 def git(repo, *args, capture=True):
     result = subprocess.run(
-        ['git', '-C', str(repo), *args], check=True, text=True,
+        ['git', '--no-pager', '-C', str(repo), *args], check=True, text=True,
         stdout=subprocess.PIPE if capture else None,
     )
     return result.stdout.strip() if capture else None
