@@ -2,7 +2,10 @@
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 source "$repo/Scripts/signing.sh"
+source "$repo/Scripts/launch-services.sh"
 identity="$(resolve_signing_identity)"
+# Xcode can register its product even when a later signing/validation step fails.
+trap unregister_cloppy_builds EXIT
 xcodebuild -project "$repo/Clop.xcodeproj" -scheme Clop -configuration Release \
     -derivedDataPath "${CLOPPY_DERIVED_DATA_PATH:-$repo/build/DerivedData}" -disableAutomaticPackageResolution \
     -destination "platform=macOS,arch=$(uname -m)" ONLY_ACTIVE_ARCH=YES \

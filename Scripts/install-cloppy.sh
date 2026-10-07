@@ -2,6 +2,7 @@
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 source "$repo/Scripts/signing.sh"
+source "$repo/Scripts/launch-services.sh"
 identity="$(resolve_signing_identity)"
 candidate="$repo/build/Cloppy.app"
 applications="${APPLICATIONS_DIR:-/Applications}"
@@ -77,4 +78,6 @@ codesign --verify --deep --strict -R "=certificate leaf = H\"$identity\"" "$targ
     echo 'Installation target changed during validation.' >&2; exit 1;
 }
 committed=1
+unregister_cloppy_builds
+cloppy_launch_services -f "$target"
 printf 'Installed %s (not launched)\n' "$target"

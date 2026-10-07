@@ -48,6 +48,15 @@ Cloppy owns `local.cloppy.app`, `cloppy://`, its IPC ports, caches and MCP entri
 MCP write/script authorization gates remain intact. No existing Clop preferences
 are imported. Updating a local build does not require deleting its preferences.
 
+Builds unregister their two app artifacts from Launch Services on exit, including
+after a failed build, to reduce duplicate entries in Finder's Open With menu.
+This includes a custom `CLOPPY_DERIVED_DATA_PATH`. Successful installation repeats
+that cleanup and registers only the validated installed app. Catalogue failures
+print warnings without failing the build or rolling back a committed installation;
+no global catalogue reset or change to the official Clop is performed. Opening a
+build copy or a later macOS scan can register it again. This workflow and its tests
+are fork-owned in `.cloppy/overlay` and are reapplied by `make update`.
+
 ## Sync upstream
 
 `make update` performs the complete local sync flow against `upstream`:
