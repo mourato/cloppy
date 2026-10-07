@@ -18,12 +18,16 @@ local build convention. No Paddle credentials or author's private build scripts 
 
 ```sh
 repo="$(git rev-parse --show-toplevel)"
+make -C "$repo"
 make -C "$repo" build
 make -C "$repo" install
 make -C "$repo" update
 make -C "$repo" package
 make -C "$repo" check
 ```
+
+`make` without a target (or `make help`) only lists available commands. Building
+requires the explicit `make build` target.
 
 `make install` builds, signs and validates the app, requests graceful exit if
 Cloppy is running, and replaces only `/Applications/Cloppy.app`. It stages on the

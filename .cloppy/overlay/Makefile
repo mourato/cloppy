@@ -1,5 +1,15 @@
-.DEFAULT_GOAL := build
-.PHONY: build install update package check
+.DEFAULT_GOAL := help
+.PHONY: help build install update package check
+help:
+	@printf '%s\n' \
+	    'Cloppy commands:' \
+	    '  make help     Show available commands (default)' \
+	    '  make build    Build and validate build/Cloppy.app' \
+	    '  make install  Build and install /Applications/Cloppy.app' \
+	    '  make update   Import and review the latest stable Clop release' \
+	    '  make package  Build and create build/Cloppy.zip' \
+	    '  make check    Run workflow and patch-queue tests' \
+	    '  make hooks    Enable versioned Git hooks for this clone'
 build:
 	"$(CURDIR)/Scripts/build-cloppy.sh"
 install: build
