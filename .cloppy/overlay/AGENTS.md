@@ -84,11 +84,18 @@ Import upstream releases through the reviewed update flow, which rebuilds the
 release plus `.cloppy` instead of merging; never hand-merge upstream into `main`.
 Preserve Cloppy's Makefile and scripts in `.cloppy/overlay`.
 
-Hooks are opt-in per clone through `core.hooksPath=.githooks` and retain Git LFS.
-Authorised merges on `main`/`master`, including approved `make update` integration,
-push before cleanup. Push failure skips cleanup; check actual results because a
-successful Git merge alone does not prove successful hook finalization.
-Cleanup may remove update-candidate artifacts; rebuild from `main` when needed.
+Hooks are opt-in per clone through `core.hooksPath=.githooks`, retain Git LFS,
+and chain the global product `pre-commit` and `pre-push` hooks.
+`.githooks/post-merge` is warn-only: after a merge on `main`/`master` with
+unpublished commits, it prints a warning and exits without pushing or running
+cleanup. Push and cleanup are separate authorized steps (for example, through
+`finish-task` or an explicit push followed by cleanup). Cleanup may remove
+update-candidate artifacts; rebuild from `main` when needed.
+
+`make check` and `make build` do not write a validation record, so a bare
+`git push` after them is refused by the chained `.githooks/pre-push` hook.
+Publish task branches through `~/.agents/scripts/ready-task.sh` (which records
+validation) or `finish-task`, not a bare `git push` after `make check`.
 
 Cleanup delegates to the local agent-config checkout at
 `${AGENT_CONFIG_HOME:-$HOME/.agents}/scripts/cleanup-merged-worktrees.sh`.
