@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+product_hook="${AGENT_CONFIG_HOME:-$HOME/.agents}/hooks/product/pre-commit"
+if [[ -x $product_hook ]]; then
+  exec "$product_hook" "$@"
+fi
